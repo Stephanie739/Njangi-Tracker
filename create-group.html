@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create New Group - Njangi Tracker</title>
+  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="create-group.css">
+</head>
+<body class="dashboard-body">
+
+  <!-- SIDEBAR NAVIGATION -->
+ <!-- SIDEBAR NAVIGATION -->
+  <!-- STANDARD SIDEBAR LAYOUT -->
+<aside class="sidebar">
+  <!-- BRAND HEADER -->
+  <div class="sidebar-header">
+    <a href="dashboard.html" class="brand-logo">
+      <svg class="brand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+      </svg>
+      <span class="brand-name">Njangi Tracker</span>
+    </a>
+  </div>
+
+  <!-- NAVIGATION LINKS -->
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item active">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+      <span>Dashboard</span>
+    </a>
+
+    <a href="member.html" class="nav-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle></svg>
+      <span>Members</span>
+    </a>
+
+    <a href="rotation.html" class="nav-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+      <span>Payout Rotation</span>
+    </a>
+
+    <a href="create-group.html" class="nav-item">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span>New Group</span>
+    </a>
+  </nav>
+</aside>
+
+  <!-- MAIN DASHBOARD CONTENT -->
+  <main class="dashboard-content">
+    
+    <div class="page-header">
+      <div>
+        <a href="groups.html" class="nav-item" style="padding:0; margin-bottom:0.5rem; display:inline-flex;">
+          &larr; Back to Groups
+        </a>
+        <h1 class="page-title">Create New Njangi Group</h1>
+        <p class="page-subtitle">Configure contribution amounts, payout rules, and rotation schedules.</p>
+      </div>
+    </div>
+
+    <!-- FORM CARD -->
+    <div class="card" style="max-width: 800px;">
+      <form id="createGroupForm">
+        
+        <!-- SECTION 1: BASIC INFORMATION -->
+        <div style="margin-bottom: 2rem;">
+          <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem; border-bottom: 1px solid #1f2937; padding-bottom: 0.5rem;">
+            1. Group Details
+          </h3>
+          
+          <div class="input-group">
+            <label for="groupName">Group Name *</label>
+            <input type="text" id="groupName" class="form-control" placeholder="e.g., Unity Savings Group 2026" required>
+          </div>
+
+          <div class="input-group">
+            <label for="groupDescription">Description / Purpose</label>
+            <textarea id="groupDescription" class="form-control" rows="3" placeholder="Briefly describe the purpose or rules of this group..."></textarea>
+          </div>
+
+          <div class="input-group">
+            <label for="currency">Currency *</label>
+            <select id="currency" class="form-control" required>
+              <option value="XAF" selected>XAF - Central African CFA Franc</option>
+              <option value="USD">USD - US Dollar ($)</option>
+              <option value="EUR">EUR - Euro (€)</option>
+              <option value="NGN">NGN - Nigerian Naira (₦)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SECTION 2: CONTRIBUTION & ROTATION RULES -->
+        <div style="margin-bottom: 2rem;">
+          <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem; border-bottom: 1px solid #1f2937; padding-bottom: 0.5rem;">
+            2. Contribution & Schedule
+          </h3>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+            <div class="input-group">
+              <label for="contributionAmount">Contribution Amount *</label>
+              <input type="number" id="contributionAmount" class="form-control" placeholder="e.g., 50000" min="100" required>
+            </div>
+
+            <div class="input-group">
+              <label for="frequency">Frequency *</label>
+              <select id="frequency" class="form-control" required>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Bi-Weekly (Every 2 weeks)</option>
+                <option value="monthly" selected>Monthly</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+            <div class="input-group">
+              <label for="startDate">First Cycle Start Date *</label>
+              <input type="date" id="startDate" class="form-control" required>
+            </div>
+
+            <div class="input-group">
+              <label for="maxMembers">Maximum Member Limit</label>
+              <input type="number" id="maxMembers" class="form-control" placeholder="e.g., 12" min="2" max="100">
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 3: PAYOUT METHOD -->
+        <div style="margin-bottom: 2rem;">
+          <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem; border-bottom: 1px solid #1f2937; padding-bottom: 0.5rem;">
+            3. Payout & Rotation Order
+          </h3>
+
+          <div class="input-group">
+            <label for="payoutType">Rotation Method *</label>
+            <select id="payoutType" class="form-control" required>
+              <option value="fixed">Fixed Schedule (Pre-assigned slots)</option>
+              <option value="random">Random Draw (Lottery at start)</option>
+              <option value="bidding">Bidding System (Highest bidder wins pot)</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label for="lateFee">Late Payment Fine (Optional)</label>
+            <input type="number" id="lateFee" class="form-control" placeholder="e.g., 2000 (Flat fee per day late)">
+          </div>
+        </div>
+
+        <!-- SUBMIT BUTTONS -->
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+          <a href="groups.html" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary">Create Group</button>
+        </div>
+
+      </form>
+    </div>
+
+  </main>
+
+  <script>
+    // Simple Form Handler Demo
+    document.getElementById('createGroupForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const groupName = document.getElementById('groupName').value;
+      alert(`Group "${groupName}" created successfully! Redirecting to group list...`);
+      
+      // Redirect back to group list
+      window.location.href = 'groups.html';
+    });
+
+    // Set default start date to today
+    document.getElementById('startDate').valueAsDate = new Date();
+  </script>
+</body>
+</html>
