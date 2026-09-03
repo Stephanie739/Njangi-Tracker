@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Members | Njangi Tracker</title>
+  <link rel="stylesheet" href="ST css/dashboard.css">
+  <link rel="stylesheet" href="ST css/members.css">
+</head>
+<body>
+  <!-- Same sidebar design as the main dashboard -->
+  <aside class="sidebar" id="sidebar">
+    <a href="dashboard.html" class="logo"><span class="logo-mark">N</span><span>Njangi<span class="logo-accent">Tracker</span></span></a>
+    <div class="group-switcher"><small>ACTIVE GROUP</small><strong>Njangi Group</strong><span id="sideCycle">Active Cycle</span></div>
+    <nav class="side-nav">
+      <a href="dashboard.html"><span>▦</span> Dashboard</a>
+      <a href="members.html" class="active"><span>👥</span> Members</a>
+      <a href="cycles.html"><span>↻</span> Cycles</a>
+      <a href="contributions.html"><span>₣</span> Contributions</a>
+      <a href="history.html"><span>◷</span> History</a>
+    </nav>
+    <div class="sidebar-bottom"><a href="#"><span>⚙</span> Settings</a><button id="logoutButton" class="logout-button"><span>↪</span> Log out</button></div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="page">
+    <header class="topbar">
+      <button class="mobile-menu" id="mobileMenu">☰</button>
+      <div class="topbar-search"><span>⌕</span><input id="memberSearchTop" type="search" placeholder="Search members..."></div>
+      <div class="topbar-user"><div class="notification">🔔</div><div class="user-avatar" id="userAvatar">NG</div><div class="user-info"><strong id="userName">Njangi Admin</strong><small>Administrator</small></div></div>
+    </header>
+
+    <main class="main-content">
+      <section class="page-heading">
+        <div><span class="section-label">MEMBERS</span><h1>Member Management</h1><p>Manage members, rotation positions and payment status.</p></div>
+        <button class="primary-button" id="openMemberModal">+ Add Member</button>
+      </section>
+
+      <!-- These cards are calculated from localStorage -->
+      <section class="stats-grid">
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon green">👥</span><span class="neutral">Active</span></div><small>Total Members</small><h2 id="totalMembers">0</h2><p>Registered in this group</p></div>
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon purple">✓</span><span class="trend">Paid</span></div><small>Fully Paid</small><h2 id="fullyPaid">0</h2><p>Members who completed payment</p></div>
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon orange">!</span><span class="neutral">Due</span></div><small>Outstanding</small><h2 id="outstandingCount">0</h2><p>Members with a balance</p></div>
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon blue">₣</span><span class="neutral">Expected</span></div><small>Total Expected</small><h2 id="totalExpected">0 FCFA</h2><p>Current cycle target from members</p></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><span class="section-label">DIRECTORY</span><h2>Members & Rotation</h2></div><span class="status" id="enrollmentSummary">0 enrolled</span></div>
+        <div class="member-toolbar"><input id="searchMember" type="search" placeholder="Search name or phone..."><select id="statusFilter"><option value="all">All payment statuses</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="pending">Pending</option></select><select id="enrollmentFilter"><option value="all">All enrollment</option><option value="enrolled">Enrolled</option><option value="not-enrolled">Not enrolled</option></select></div>
+        <div class="table-wrap"><table><thead><tr><th>Position</th><th>Member</th><th>Phone</th><th>Expected</th><th>Paid</th><th>Balance</th><th>Status</th><th>Reliability</th><th>Actions</th></tr></thead><tbody id="memberTable"></tbody></table></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add/edit member form -->
+  <div class="modal" id="memberModal" aria-hidden="true">
+    <div class="modal-card wide-modal">
+      <button class="modal-close" id="closeMemberModal">×</button>
+      <span class="section-label">MEMBER</span><h2 id="modalTitle">Add Member</h2><p>Add the member and their place in the rotation.</p>
+      <form id="memberForm" class="form-grid">
+        <input type="hidden" id="memberId">
+        <label>Full Name<input id="memberName" required></label>
+        <label>Phone Number<input id="memberPhone" required></label>
+        <label>Expected Contribution<input id="memberExpected" type="number" min="0" required></label>
+        <label>Rotation Position<input id="memberPosition" type="number" min="1" required></label>
+        <label class="checkbox-label"><input id="memberEnrolled" type="checkbox" checked> Enrolled in rotation</label>
+        <div class="form-actions"><button type="button" class="outline-button" id="cancelMember">Cancel</button><button class="primary-button">Save Member</button></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script><script src="js/members.js"></script>
+</body>
+</html>
