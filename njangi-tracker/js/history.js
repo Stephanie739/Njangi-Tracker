@@ -1,7 +1,9 @@
-// =====================================================
+// 
+
 // HISTORY PAGE
 // This page reads contribution data already saved by contributions.js.
-// =====================================================
+
+
 const MEMBER_KEY = "njangiMembers";
 const CONTRIBUTION_KEY = "njangiContributions";
 const CYCLE_KEY = "njangiCycles";
@@ -78,7 +80,7 @@ document.getElementById("clearHistory").onclick = () => {
   if (!getContributions().length) return;
   if (!confirm("Clear all contribution history?")) return;
   localStorage.removeItem(CONTRIBUTION_KEY);
-  const resetMembers = getMembers().map(member => ({...member, paid: 0}));
+  const resetMembers = getMembers().map(member => ({ ...member, paid: 0 }));
   localStorage.setItem(MEMBER_KEY, JSON.stringify(resetMembers));
   renderHistory();
 };

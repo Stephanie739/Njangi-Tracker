@@ -1,8 +1,10 @@
-// =====================================================
+// 
+
 // MEMBER LOGIN
 // Demo: members from localStorage (njangiMembers) or seed data.
 // Password for all demo members: member123
-// =====================================================
+
+// 
 
 const MEMBER_KEY = "njangiMembers";
 const MEMBER_SESSION_KEY = "njangiMemberSession";

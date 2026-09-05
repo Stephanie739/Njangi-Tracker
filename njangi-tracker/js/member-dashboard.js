@@ -1,8 +1,10 @@
-// =====================================================
+// 
+
 // MEMBER DASHBOARD
 // Shows only: active cycle, payment status, recent contributions,
 // and loan request form. Loan requests share LOAN_KEY with admin loans page.
-// =====================================================
+
+// 
 
 const MEMBER_KEY = "njangiMembers";
 const LOAN_KEY = "njangiLoans";
