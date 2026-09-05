@@ -1,11 +1,13 @@
-//
+// =========================================
 // NJANGI TRACKER - MAIN JAVASCRIPT
-//
+// =========================================
 
-// Mobile navigation
+// MOBILE NAVIGATION
+// These elements come from the navigation menu in index.html.
 const menuToggle = document.getElementById("menuToggle");
 const navLinks = document.getElementById("navLinks");
 
+// When the menu button is clicked, open or close the mobile menu.
 menuToggle.addEventListener("click", () => {
     const isOpen = navLinks.classList.toggle("active");
 
@@ -25,7 +27,8 @@ menuToggle.addEventListener("click", () => {
     }
 });
 
-// Close mobile menu after clicking a navigation link
+// CLOSE MOBILE MENU
+// On a phone, close the menu after the user chooses a page section.
 const links = navLinks.querySelectorAll("a");
 
 links.forEach((link) => {
@@ -40,11 +43,13 @@ links.forEach((link) => {
     });
 });
 
-// Update footer year automatically
+// FOOTER YEAR
+// JavaScript gets the current year so we do not have to update the HTML manually.
 const currentYear = document.getElementById("currentYear");
 currentYear.textContent = new Date().getFullYear();
 
-// Simple scroll-reveal animation
+// SCROLL REVEAL ANIMATION
+// Cards start hidden and become visible when they enter the screen.
 const revealElements = document.querySelectorAll(
     ".feature-card, .step, .about-card, .about-points, .cta-box"
 );
@@ -71,7 +76,8 @@ revealElements.forEach((element) => {
     revealObserver.observe(element);
 });
 
-// Smoothly focus the main content when Get Started is clicked
+// GET STARTED BUTTON
+// Scroll to the features section when the button points to #features.
 const getStartedButtons = document.querySelectorAll('a[href="#features"]');
 
 getStartedButtons.forEach((button) => {

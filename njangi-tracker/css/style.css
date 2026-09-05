@@ -1,8 +1,13 @@
-/* 
+/* HOW TO READ THIS FILE:
+   1. Variables are stored in :root.
+   2. General rules style common HTML elements.
+   3. Section rules style specific parts of the page.
+   4. @media rules make the page responsive on smaller screens.
+   ========================================= */
 
+/* =========================================
    NJANGI TRACKER - MAIN STYLESHEET
-   
-   */
+   ========================================= */
 
 :root {
     --primary: #176b4d;

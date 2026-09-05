@@ -10,11 +10,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="new-index.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
     <!-- Header / Navigation -->
+    <!-- HEADER: logo and main navigation -->
     <header class="header" id="home">
         <div class="container nav">
             <a href="#home" class="logo">
@@ -34,12 +35,16 @@
                 <a href="#how-it-works">How It Works</a>
                 <a href="#about">About</a>
                 <a href="#contact">Contact</a>
-                <a href="#get-started" class="nav-button">Get Started</a>
+                <a href="login.html">Login</a>
+                <a href="register.html" class="nav-button">Get Started</a>
             </nav>
         </div>
     </header>
 
+    <!-- MAIN CONTENT: all sections visible on the landing page -->
     <main>
+        <!-- HERO: first section visitors see -->
+        <!-- It explains what Njangi Tracker does and provides the main buttons. -->
         <!-- Hero Section -->
         <section class="hero">
             <div class="container hero-grid">
@@ -57,8 +62,8 @@
                     </p>
 
                     <div class="hero-buttons" id="get-started">
-                        <a href="#features" class="btn btn-primary">Get Started <span>→</span></a>
-                        <a href="#how-it-works" class="btn btn-secondary">See How It Works</a>
+                        <a href="register.html" class="btn btn-primary">Get Started <span>→</span></a>
+                        <a href="login.html" class="btn btn-secondary">Login</a>
                     </div>
 
                     <div class="trust-row">
@@ -165,6 +170,7 @@
             </div>
         </section>
 
+        <!-- FEATURES: the main things users can do with the application -->
         <!-- Features -->
         <section class="section features-section" id="features">
             <div class="container">
@@ -217,6 +223,7 @@
             </div>
         </section>
 
+        <!-- HOW IT WORKS: explains the three basic steps -->
         <!-- How It Works -->
         <section class="section how-section" id="how-it-works">
             <div class="container">
@@ -250,6 +257,7 @@
             </div>
         </section>
 
+        <!-- ABOUT: short explanation of the purpose of the project -->
         <!-- About -->
         <section class="section about-section" id="about">
             <div class="container about-grid">
@@ -274,6 +282,7 @@
             </div>
         </section>
 
+        <!-- CTA: final call-to-action before the footer -->
         <!-- CTA -->
         <section class="cta-section" id="contact">
             <div class="container cta-box">
@@ -283,11 +292,12 @@
                     <p>Start with a simple dashboard and grow your tracker as your group grows.</p>
                 </div>
 
-                <a href="#home" class="btn btn-light">Start Tracking <span>→</span></a>
+                <a href="register.html" class="btn btn-light">Start Tracking <span>→</span></a>
             </div>
         </section>
     </main>
 
+    <!-- FOOTER: project information and quick links -->
     <!-- Footer -->
     <footer class="footer">
         <div class="container footer-content">
@@ -313,6 +323,7 @@
         </div>
     </footer>
 
-    <script src="index.js"></script>
+    <!-- Load JavaScript after the HTML so the elements already exist when the script runs. -->
+    <script src="js/script.js"></script>
 </body>
 </html>

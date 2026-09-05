@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Members | Njangi Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/members.css">
+</head>
+
+<body>
+    <!-- SIDEBAR: Same navigation and design as the dashboard. -->
+    <aside class="sidebar" id="sidebar"><a href="dashboard.html" class="logo"><span
+                class="logo-mark">N</span><span>Njangi<span class="logo-accent">Tracker</span></span></a>
+        <div class="group-switcher"><small>ACTIVE GROUP</small><strong>Njangi Group</strong><span>Cycle #05</span></div>
+        <nav class="side-nav"><a href="dashboard.html"><span>▦</span> Dashboard</a><a href="members.html"
+                class="active"><span>👥</span> Members</a><a href="cycles.html"><span>↻</span> Cycles</a><a
+                href="contributions.html"><span>₣</span> Contributions</a><a href="history.html"><span>◷</span>
+                History</a></nav>
+        <div class="sidebar-bottom"><a href="#settings"><span>⚙</span> Settings</a><button id="logoutButton"
+                class="logout-button"><span>↪</span> Log out</button></div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="page">
+        <header class="topbar"><button class="mobile-menu" id="mobileMenu">☰</button>
+            <div class="topbar-search"><span>⌕</span><input type="search" id="memberSearch"
+                    placeholder="Search members..."></div>
+            <div class="topbar-user">
+                <div class="notification">🔔<span></span></div>
+                <div class="user-avatar" id="userAvatar">NG</div>
+                <div class="user-info"><strong id="userName">Njangi Admin</strong><small>Administrator</small></div>
+            </div>
+        </header>
+        <main class="main-content">
+            <section class="page-heading">
+                <div><span class="section-label">GROUP MANAGEMENT</span>
+                    <h1>Members</h1>
+                    <p>Add, update and monitor members in your Njangi group.</p>
+                </div><button class="primary-button" id="openAddMember">+ Add Member</button>
+            </section>
+            <section class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon green">👥</span><span
+                            class="neutral">Group</span></div><small>Total Members</small>
+                    <h2 id="totalMembers">0</h2>
+                    <p>Members in this group</p>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon green">✓</span></div><small>Fully Paid</small>
+                    <h2 id="paidMembers">0</h2>
+                    <p>Members who completed payment</p>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon orange">!</span></div><small>Pending</small>
+                    <h2 id="pendingMembers">0</h2>
+                    <p>Members who still owe</p>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon blue">₣</span></div><small>Total
+                        Expected</small>
+                    <h2 id="expectedTotal">0 FCFA</h2>
+                    <p>Expected contributions</p>
+                </div>
+            </section>
+            <section class="panel recent-panel">
+                <div class="panel-heading">
+                    <div><span class="section-label">MEMBER DIRECTORY</span>
+                        <h2>All Members</h2>
+                    </div><span class="status" id="memberCountLabel">0 Members</span>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Phone</th>
+                                <th>Expected</th>
+                                <th>Paid</th>
+                                <th>Balance</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="memberTable"></tbody>
+                    </table>
+                    <div class="empty-state" id="emptyState">
+                        <div>👥</div>
+                        <h3>No members yet</h3>
+                        <p>Use “Add Member” to create your first member.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div class="modal" id="memberModal">
+        <div class="modal-card"><button class="modal-close" id="closeModal">×</button><span class="section-label">MEMBER
+                FORM</span>
+            <h2 id="modalTitle">Add Member</h2>
+            <p>Enter simple member information below.</p>
+            <form id="memberForm"><input type="hidden" id="memberId"><label>Full Name<input id="memberName" required
+                        placeholder="e.g. John Mbida"></label><label>Phone Number<input id="memberPhone" required
+                        placeholder="e.g. 677000000"></label><label>Expected Contribution<input id="expectedAmount"
+                        type="number" min="0" required placeholder="e.g. 20000"></label>
+                <div class="modal-actions"><button type="button" class="outline-button"
+                        id="cancelModal">Cancel</button><button class="primary-button" type="submit">Save
+                        Member</button></div>
+            </form>
+        </div>
+    </div>
+    <script src="js/members.js"></script>
+</body>
+
+</html>
