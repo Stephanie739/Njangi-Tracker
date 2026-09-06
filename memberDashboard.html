@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Member Dashboard | Njangi Tracker</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="css/memberDashboard.css"
+    >
+</head>
+
+
+<body>
+
+
+<!-- SIDEBAR -->
+
+<aside class="sidebar">
+
+    <a href="index.html" class="logo">
+
+        <span class="logo-mark">N</span>
+
+        <span>
+            Njangi<span class="logo-accent">Tracker</span>
+        </span>
+
+    </a>
+
+
+    <nav class="side-menu">
+
+        <a href="#" class="active">
+            Dashboard
+        </a>
+
+        <a href="#contributions">
+            My Contributions
+        </a>
+
+        <a href="#payments">
+            Payments
+        </a>
+
+        <a href="#loans">
+            My Loans
+        </a>
+
+        <a href="#cycle">
+            Current Cycle
+        </a>
+
+    </nav>
+
+
+    <div class="sidebar-bottom">
+
+        <div class="user-small">
+
+            <div class="user-avatar">
+                M
+            </div>
+
+            <div>
+                <strong>Member</strong>
+                <small>Member Account</small>
+            </div>
+
+        </div>
+
+        <button
+        
+            class="logout-btn"
+            id="memberLogout"
+        >   <a href="index.html">
+            Logout
+            </a>
+        </button>
+
+    </div>
+
+</aside>
+
+
+
+<!-- MAIN -->
+
+<main class="dashboard-main">
+
+
+    <!-- TOP BAR -->
+
+    <header class="dashboard-header">
+
+        <div>
+
+            <p class="page-label">
+                MEMBER DASHBOARD
+            </p>
+
+            <h1>
+                Welcome back, Member
+            </h1>
+
+        </div>
+
+
+        <div class="header-user">
+
+            <div class="user-avatar">
+                M
+            </div>
+
+        </div>
+
+    </header>
+
+
+
+    <!-- ACCOUNT SUMMARY -->
+
+    <section class="summary-grid">
+
+
+        <div class="summary-card">
+
+            <div class="summary-icon">
+                ₦
+            </div>
+
+            <div>
+
+                <p>Total in Account</p>
+
+                <h2 id="memberBalance">
+                    ₦250,000
+                </h2>
+
+            </div>
+
+        </div>
+
+
+        <div class="summary-card">
+
+            <div class="summary-icon">
+                ✓
+            </div>
+
+            <div>
+
+                <p>Total Contributions</p>
+
+                <h2>
+                    ₦300,000
+                </h2>
+
+            </div>
+
+        </div>
+
+
+        <div class="summary-card">
+
+            <div class="summary-icon">
+                #
+            </div>
+
+            <div>
+
+                <p>Current Cycle</p>
+
+                <h2>
+                    Cycle 5
+                </h2>
+
+            </div>
+
+        </div>
+
+
+        <div class="summary-card">
+
+            <div class="summary-icon">
+                L
+            </div>
+
+            <div>
+
+                <p>Loan Status</p>
+
+                <h2 class="status-text">
+                    No Active Loan
+                </h2>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- ACTIONS -->
+
+    <section class="dashboard-section">
+
+        <div class="section-heading">
+
+            <div>
+                <h2>Quick Actions</h2>
+                <p>Manage the things available to your account.</p>
+            </div>
+
+        </div>
+
+
+        <div class="action-grid">
+
+
+            <button
+                class="action-card"
+                id="makePayment"
+            >
+
+                <span class="action-icon">
+                    ₦
+                </span>
+
+                <strong>
+                    Make Payment
+                </strong>
+
+                <small>
+                    Record a contribution payment
+                </small>
+
+            </button>
+
+
+            <button
+                class="action-card"
+                id="requestLoan"
+            >
+
+                <span class="action-icon">
+                    +
+                </span>
+
+                <strong>
+                    Request Loan
+                </strong>
+
+                <small>
+                    Submit a loan request for admin approval
+                </small>
+
+            </button>
+
+
+            <a
+                href="#payments"
+                class="action-card"
+            >
+
+                <span class="action-icon">
+                    →
+                </span>
+
+                <strong>
+                    Payment History
+                </strong>
+
+                <small>
+                    View your previous payments
+                </small>
+
+            </a>
+
+
+        </div>
+
+    </section>
+
+
+
+    <!-- TWO COLUMNS -->
+
+    <div class="dashboard-columns">
+
+
+        <!-- CONTRIBUTIONS -->
+
+        <section
+            class="dashboard-section"
+            id="contributions"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <h2>
+                        My Contributions
+                    </h2>
+
+                    <p>
+                        Your recent contribution records.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Date</th>
+                            <th>Cycle</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        <tr>
+                            <td>05 Sep 2026</td>
+                            <td>Cycle 5</td>
+                            <td>₦50,000</td>
+                            <td>
+                                <span class="status approved">
+                                    Paid
+                                </span>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>05 Aug 2026</td>
+                            <td>Cycle 4</td>
+                            <td>₦50,000</td>
+                            <td>
+                                <span class="status approved">
+                                    Paid
+                                </span>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>05 Jul 2026</td>
+                            <td>Cycle 3</td>
+                            <td>₦50,000</td>
+                            <td>
+                                <span class="status approved">
+                                    Paid
+                                </span>
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- LOANS -->
+
+        <section
+            class="dashboard-section"
+            id="loans"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <h2>
+                        My Loans
+                    </h2>
+
+                    <p>
+                        Loan requests and their status.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="loan-box">
+
+                <div>
+
+                    <span class="loan-label">
+                        Current request
+                    </span>
+
+                    <h3>
+                        No pending request
+                    </h3>
+
+                    <p>
+                        You can request a loan using the
+                        button above.
+                    </p>
+
+                </div>
+
+                <button
+                    class="small-btn"
+                    id="requestLoanTwo"
+                >
+                    Request Loan
+                </button>
+
+            </div>
+
+        </section>
+
+    </div>
+
+
+
+    <!-- PAYMENT HISTORY -->
+
+    <section
+        class="dashboard-section"
+        id="payments"
+    >
+
+        <div class="section-heading">
+
+            <div>
+
+                <h2>
+                    Payment History
+                </h2>
+
+                <p>
+                    Your recent payments.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Purpose</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    <tr>
+
+                        <td>
+                            05 Sep 2026
+                        </td>
+
+                        <td>
+                            PAY-001
+                        </td>
+
+                        <td>
+                            Contribution
+                        </td>
+
+                        <td>
+                            ₦50,000
+                        </td>
+
+                        <td>
+                            <span class="status approved">
+                                Confirmed
+                            </span>
+                        </td>
+
+                    </tr>
+
+
+                    <tr>
+
+                        <td>
+                            05 Aug 2026
+                        </td>
+
+                        <td>
+                            PAY-002
+                        </td>
+
+                        <td>
+                            Contribution
+                        </td>
+
+                        <td>
+                            ₦50,000
+                        </td>
+
+                        <td>
+                            <span class="status approved">
+                                Confirmed
+                            </span>
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- CURRENT CYCLE -->
+
+    <section
+        class="dashboard-section"
+        id="cycle"
+    >
+
+        <div class="section-heading">
+
+            <div>
+
+                <h2>
+                    Current Njangi Cycle
+                </h2>
+
+                <p>
+                    Information about the active cycle.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="cycle-card">
+
+            <div>
+
+                <span>
+                    CURRENT CYCLE
+                </span>
+
+                <h2>
+                    Cycle 5
+                </h2>
+
+                <p>
+                    Contribution amount:
+                    <strong>₦50,000</strong>
+                </p>
+
+            </div>
+
+
+            <div class="cycle-date">
+
+                <span>
+                    Next contribution
+                </span>
+
+                <strong>
+                    05 Oct 2026
+                </strong>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+</main>
+
+
+
+<!-- LOAN MODAL -->
+
+<div
+    class="modal"
+    id="loanModal"
+>
+
+    <div class="modal-card">
+
+        <button
+            class="modal-close"
+            id="closeLoan"
+        >
+            ×
+        </button>
+
+        <h2>
+            Request a Loan
+        </h2>
+
+        <p>
+            Your request will be sent to the administrator
+            for approval.
+        </p>
+
+
+        <form id="loanForm">
+
+            <label>
+                Loan Amount
+            </label>
+
+            <input
+                type="number"
+                id="loanAmount"
+                placeholder="Enter amount"
+                required
+            >
+
+
+            <label>
+                Reason
+            </label>
+
+            <textarea
+                id="loanReason"
+                placeholder="Why do you need this loan?"
+                required
+            ></textarea>
+
+
+            <button
+                type="submit"
+                class="primary-btn"
+            >
+                Submit Loan Request
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+
+<script src="js/memberDashboard.js"></script>
+
+</body>
+</html>
