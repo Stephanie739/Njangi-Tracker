@@ -27,6 +27,29 @@ const cycle = {
     collected: 350000
 };
 
+// =====================================================
+// AUTHENTICATION GUARD
+// Run this before any other UI or data scripts execute
+// =====================================================
+(function checkAuth() {
+    const isLoggedIn = localStorage.getItem("njangiLoggedIn");
+
+    if (!isLoggedIn || isLoggedIn !== "true") {
+        // User is not logged in, redirect immediately
+        window.location.replace("login.html");
+    }
+})();
+
+
+logoutButton = document.getElementById("logoutButton");
+
+if (logoutButton) {
+    logoutButton.addEventListener("click", () => {
+        localStorage.removeItem("njangiLoggedIn");
+        window.location.replace("login.html");
+    });
+}
+
 // -----------------------------------------------------
 // 2. HELPER FUNCTIONS
 // -----------------------------------------------------
