@@ -1,0 +1,73 @@
+/* Page-specific styles. dashboard.css supplies the shared design. */
+.filter-panel {
+    margin-top: 14px;
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.filter-row input,
+.filter-row select {
+    padding: 10px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    outline: 0;
+    background: #fbfcfb;
+    color: var(--text);
+    font-size: .68rem;
+}
+
+.filter-row input:focus,
+.filter-row select:focus {
+    border-color: var(--primary);
+}
+
+.outline-small {
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--primary);
+    background: #fff;
+    font-size: .62rem;
+    font-weight: 700;
+}
+
+.outline-small:hover {
+    border-color: var(--primary);
+}
+
+.empty-table {
+    padding: 35px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    color: var(--muted);
+    font-size: .7rem;
+}
+
+.empty-table strong {
+    color: var(--text);
+    font-size: .75rem;
+}
+
+.type-badge {
+    padding: 4px 7px;
+    border-radius: 20px;
+    color: var(--primary);
+    background: var(--primary-light);
+    font-size: .52rem;
+    font-weight: 700;
+}
+
+@media(max-width:800px) {
+    .filter-row {
+        grid-template-columns: 1fr
+    }
+
+    .section-heading {}
+}

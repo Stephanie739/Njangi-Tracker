@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>History | Njangi Tracker</title>
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/history.css">
+</head>
+<body>
+  <!-- SIDEBAR: Same design as the dashboard. -->
+  <aside class="sidebar" id="sidebar">
+    <a href="dashboard.html" class="logo"><span class="logo-mark">N</span><span>Njangi<span class="logo-accent">Tracker</span></span></a>
+    <div class="group-switcher"><small>ACTIVE GROUP</small><strong>Njangi Group</strong><span>Cycle #05</span></div>
+    <nav class="side-nav">
+      <a href="dashboard.html"><span>▦</span> Dashboard</a>
+      <a href="members.html"><span>👥</span> Members</a>
+      <a href="cycles.html"><span>↻</span> Cycles</a>
+      <a href="contributions.html"><span>₣</span> Contributions</a>
+      <a href="history.html" class="active"><span>◷</span> History</a>
+    </nav>
+    <div class="sidebar-bottom"><a href="#settings"><span>⚙</span> Settings</a><button id="logoutButton" class="logout-button"><span>↪</span> Log out</button></div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="page">
+    <header class="topbar">
+      <button class="mobile-menu" id="mobileMenu" aria-label="Open menu">☰</button>
+      <div class="topbar-search"><span>⌕</span><input id="historySearch" type="search" placeholder="Search history..."></div>
+      <div class="topbar-user"><div class="notification">🔔<span></span></div><div class="user-avatar">NG</div><div class="user-info"><strong>Njangi Admin</strong><small>Administrator</small></div></div>
+    </header>
+
+    <main class="main-content">
+      <section class="page-heading"><div><span class="section-label">RECORDS</span><h1>History</h1><p>Review past contributions and activity in your Njangi group.</p></div></section>
+
+      <!-- SUMMARY CARDS -->
+      <section class="stats-grid">
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon green">₣</span><span class="trend">All time</span></div><small>Total Contributions</small><h2 id="historyTotal">0 FCFA</h2><p>Recorded payments</p></div>
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon blue">🧾</span><span class="neutral">Records</span></div><small>Payment Records</small><h2 id="historyCount">0</h2><p>Transactions stored</p></div>
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon orange">👥</span><span class="neutral">Members</span></div><small>Members Involved</small><h2 id="historyMembers">0</h2><p>Unique contributors</p></div>
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon purple">↻</span><span class="neutral">Cycles</span></div><small>Cycles Created</small><h2 id="historyCycles">0</h2><p>Cycle records</p></div>
+      </section>
+
+      <!-- FILTERS -->
+      <section class="panel filter-panel">
+        <div class="panel-heading"><div><span class="section-label">FILTER</span><h2>Contribution History</h2></div><button class="outline-small" id="clearHistory">Clear Records</button></div>
+        <div class="filter-row">
+          <select id="memberFilter"><option value="">All members</option></select>
+          <input id="dateFilter" type="date">
+          <button class="outline-small" id="resetFilter">Reset</button>
+        </div>
+      </section>
+
+      <!-- HISTORY TABLE -->
+      <section class="panel recent-panel">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Member</th><th>Amount</th><th>Date</th><th>Cycle</th><th>Type</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+          <div class="empty-table" id="emptyHistory"><strong>No history records found.</strong><span>Contributions you record will appear here.</span></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/history.js"></script>
+</body>
+</html>

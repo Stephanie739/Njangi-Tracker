@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Member dashboard - Njangi Tracker">
+    <title>My Dashboard | Njangi Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/member-dashboard.css">
+</head>
+<body>
+    <aside class="sidebar" id="sidebar">
+        <a href="member-dashboard.html" class="logo">
+            <span class="logo-mark">N</span>
+            <span>Njangi<span class="logo-accent">Tracker</span></span>
+        </a>
+
+        <div class="group-switcher">
+            <small>ACTIVE GROUP</small>
+            <strong>Njangi Group</strong>
+            <span>Cycle #05</span>
+        </div>
+
+        <nav class="side-nav">
+            <a href="member-dashboard.html" class="active"><span>▦</span> My Dashboard</a>
+            <a href="#loan-request"><span>🏦</span> Request Loan</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <button id="logoutBtn" class="logout-button"><span>↪</span> Log out</button>
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="overlay"></div>
+
+    <div class="page">
+        <header class="topbar">
+            <button class="mobile-menu" id="menuBtn" aria-label="Open menu">☰</button>
+            <div class="topbar-search">
+                <span>⌕</span>
+                <input type="search" placeholder="Search…" disabled title="Search is available for admins">
+            </div>
+            <div class="topbar-user">
+                <div class="user-avatar" id="userAvatar">M</div>
+                <div class="user-info">
+                    <strong id="userName">Member</strong>
+                    <small>Member</small>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="page-heading">
+                <div>
+                    <span class="section-label">MEMBER VIEW</span>
+                    <h1>Hello, <span id="welcomeName">Member</span> 👋</h1>
+                    <p>Your contributions, cycle progress, and loan requests.</p>
+                </div>
+            </section>
+
+            <!-- Active cycle -->
+            <section class="panel cycle-panel" id="active-cycle">
+                <div class="panel-heading">
+                    <div>
+                        <span class="section-label">ACTIVE CYCLE</span>
+                        <h2>Cycle #05</h2>
+                    </div>
+                    <span class="status-pill">Active</span>
+                </div>
+
+                <div class="cycle-amounts">
+                    <div>
+                        <small>Collected</small>
+                        <strong id="collectedAmount">350,000 FCFA</strong>
+                    </div>
+                    <div>
+                        <small>Target</small>
+                        <strong>500,000 FCFA</strong>
+                    </div>
+                </div>
+
+                <div class="large-progress">
+                    <div class="large-progress-fill" id="progressFill" style="width: 70%"></div>
+                </div>
+                <div class="progress-labels">
+                    <span id="remainingAmount">150,000 FCFA remaining</span>
+                    <strong id="progressText">70%</strong>
+                </div>
+
+                <div class="cycle-details">
+                    <div><span>Started</span><strong>01 Aug 2026</strong></div>
+                    <div><span>Members paid</span><strong id="membersPaid">18 / 25</strong></div>
+                </div>
+            </section>
+
+            <section class="dashboard-grid">
+                <!-- Payment status (this member) -->
+                <div class="panel" id="payment-status">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="section-label">YOUR STATUS</span>
+                            <h2>Payment Status</h2>
+                        </div>
+                    </div>
+                    <div class="member-status-card">
+                        <div class="member-avatar" id="statusAvatar">M</div>
+                        <div>
+                            <strong id="statusName">Member</strong>
+                            <small id="statusDetail">Contribution for this cycle</small>
+                        </div>
+                        <span class="payment-status" id="statusBadge">Pending</span>
+                    </div>
+                    <div class="status-amounts">
+                        <div>
+                            <small>Paid this cycle</small>
+                            <strong id="paidAmount">0 FCFA</strong>
+                        </div>
+                        <div>
+                            <small>Expected</small>
+                            <strong id="expectedAmount">20,000 FCFA</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent contributions (member's own + recent group activity simplified) -->
+                <div class="panel" id="recent-contributions">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="section-label">ACTIVITY</span>
+                            <h2>Recent Contributions</h2>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Member</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contributionTable"></tbody>
+                        </table>
+                        <div class="empty-state" id="contribEmpty" style="display:none">
+                            <p>No contributions recorded yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Request loan -->
+            <section class="panel" id="loan-request">
+                <div class="panel-heading">
+                    <div>
+                        <span class="section-label">EMERGENCY LOANS</span>
+                        <h2>Request a Loan</h2>
+                    </div>
+                </div>
+                <p class="panel-desc">Your request is sent to the group admin for approval on the Emergency Loans page.</p>
+                <form id="memberLoanForm">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="loanAmount">Requested amount (FCFA)</label>
+                            <input type="number" id="loanAmount" min="1" placeholder="e.g. 50000" required>
+                        </div>
+                        <div class="form-field">
+                            <label for="loanReason">Reason</label>
+                            <input type="text" id="loanReason" placeholder="e.g. Medical emergency" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="primary-button">+ Submit loan request</button>
+                    <p class="form-message" id="loanMessage"></p>
+                </form>
+
+                <div class="my-loans-wrap">
+                    <h3 class="sub-heading">Your loan requests</h3>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Amount</th>
+                                    <th>Reason</th>
+                                    <th>Date</th>
+                                    <th>Balance</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="myLoansTable"></tbody>
+                        </table>
+                        <div class="empty-state" id="loansEmpty">
+                            <p>You have no loan requests yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/member-dashboard.js"></script>
+</body>
+</html>

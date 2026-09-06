@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Njangi Tracker dashboard">
+    <title>Dashboard | Njangi Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+    <!-- 
+         SIDEBAR: Main navigation for the tracker
+          -->
+    <aside class="sidebar" id="sidebar">
+        <a href="dashboard.html" class="logo">
+            <span class="logo-mark">N</span>
+            <span>Njangi<span class="logo-accent">Tracker</span></span>
+        </a>
+
+        <div class="group-switcher">
+            <small>ACTIVE GROUP</small>
+            <strong>Njangi Group</strong>
+            <span>Cycle #05</span>
+        </div>
+
+        <nav class="side-nav">
+            <a href="dashboard.html" class="active"><span>▦</span> Dashboard</a>
+            <a href="members.html" class="coming-soon"><span>👥</span> Members</a>
+            <a href="cycles.html" class="coming-soon"><span>↻</span> Cycles</a>
+            <a href="contributions.html" class="coming-soon"><span>₣</span> Contributions</a>
+            <a href="history.html" class="coming-soon"><span>◷</span> History</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="#settings" class="coming-soon"><span>⚙</span> Settings</a>
+            <button id="logoutButton" class="logout-button"><span>↪</span> Log out</button>
+        </div>
+    </aside>
+
+    <!-- Dark overlay appears behind the sidebar on small screens. -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="page">
+        <!-- 
+             TOP BAR: Mobile menu, search and user information
+              -->
+        <header class="topbar">
+            <button class="mobile-menu" id="mobileMenu" aria-label="Open menu">☰</button>
+
+            <div class="topbar-search">
+                <span>⌕</span>
+                <input type="search" id="memberSearch" placeholder="Search members...">
+            </div>
+
+            <div class="topbar-user">
+                <div class="notification">🔔<span></span></div>
+                <div class="user-avatar" id="userAvatar">NG</div>
+                <div class="user-info">
+                    <strong id="userName">Njangi Admin</strong>
+                    <small>Administrator</small>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Page heading -->
+            <section class="page-heading">
+                <div>
+                    <span class="section-label">OVERVIEW</span>
+                    <h1>Good morning, <span id="welcomeName">Admin</span> 👋</h1>
+                    <p>Here is what's happening with your Njangi group.</p>
+                </div>
+                <button class="primary-button" id="addContributionButton">+ Add Contribution</button>
+            </section>
+
+            <!-- 
+                 STATISTICS: These values will later come from data
+                  -->
+            <section class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-box-top">
+                        <span class="dashboard-icon green">₣</span>
+                        <span class="trend">+12.5%</span>
+                    </div>
+                    <small>Total Pool</small>
+                    <h2 id="totalPool">500,000 FCFA</h2>
+                    <p>All recorded contributions</p>
+                </div>
+
+                <div class="stat-box">
+                    <div class="stat-box-top">
+                        <span class="dashboard-icon blue">👥</span>
+                        <span class="neutral">Active</span>
+                    </div>
+                    <small>Total Members</small>
+                    <h2 id="totalMembers">25</h2>
+                    <p>Members in this group</p>
+                </div>
+
+                <div class="stat-box">
+                    <div class="stat-box-top">
+                        <span class="dashboard-icon orange">↻</span>
+                        <span class="neutral">Current</span>
+                    </div>
+                    <small>Active Cycle</small>
+                    <h2>Cycle #05</h2>
+                    <p>Target: 500,000 FCFA</p>
+                </div>
+
+                <div class="stat-box">
+                    <div class="stat-box-top">
+                        <span class="dashboard-icon purple">✓</span>
+                        <span class="trend">70%</span>
+                    </div>
+                    <small>Collection Progress</small>
+                    <h2 id="progressValue">70%</h2>
+                    <p>350,000 of 500,000 FCFA</p>
+                </div>
+            </section>
+
+            <section class="dashboard-grid">
+                <!-- Current cycle card -->
+                <div class="panel cycle-panel" id="cycles">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="section-label">ACTIVE CYCLE</span>
+                            <h2>Cycle #05</h2>
+                        </div>
+                        <span class="status">Active</span>
+                    </div>
+
+                    <div class="cycle-amounts">
+                        <div>
+                            <small>Collected</small>
+                            <strong id="collectedAmount">350,000 FCFA</strong>
+                        </div>
+                        <div>
+                            <small>Target</small>
+                            <strong>500,000 FCFA</strong>
+                        </div>
+                    </div>
+
+                    <div class="large-progress">
+                        <div class="large-progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-labels">
+                        <span id="remainingAmount">150,000 FCFA remaining</span>
+                        <strong id="progressText">70%</strong>
+                    </div>
+
+                    <div class="cycle-details">
+                        <div><span>Started</span><strong>01 Aug 2026</strong></div>
+                        <div><span>Members paid</span><strong>18 / 25</strong></div>
+                    </div>
+
+                    <button class="outline-button coming-soon" id="viewCycleButton">View Cycle Details</button>
+                </div>
+
+                <!-- Payment status -->
+                <div class="panel payment-panel" id="members">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="section-label">MEMBERS</span>
+                            <h2>Payment Status</h2>
+                        </div>
+                        <a href="#members" class="text-link">View all</a>
+                    </div>
+
+                    <div class="member-list" id="memberList">
+                        <!-- JavaScript will fill this list from the demo data. -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent contributions -->
+            <section class="panel recent-panel" id="contributions">
+                <div class="panel-heading">
+                    <div>
+                        <span class="section-label">ACTIVITY</span>
+                        <h2>Recent Contributions</h2>
+                    </div>
+                    <a href="#history" class="text-link">View history →</a>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contributionTable">
+                            <!-- JavaScript inserts contribution rows here. -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Quick actions -->
+            <section class="quick-actions" id="history">
+                <button class="quick-card coming-soon">
+                    <span>👥</span>
+                    <div><strong>Manage Members</strong><small>Add or update members</small></div>
+                    <b>→</b>
+                </button>
+                <button class="quick-card coming-soon">
+                    <span>₣</span>
+                    <div><strong>Record Payment</strong><small>Add a new contribution</small></div>
+                    <b>→</b>
+                </button>
+                <button class="quick-card coming-soon">
+                    <span>↻</span>
+                    <div><strong>Manage Cycles</strong><small>Create or close a cycle</small></div>
+                    <b>→</b>
+                </button>
+            </section>
+        </main>
+    </div>
+
+    <!-- Simple demo modal. We will turn this into the real contribution form later. -->
+    <div class="modal" id="contributionModal" aria-hidden="true">
+        <div class="modal-card">
+            <button class="modal-close" id="closeModal" aria-label="Close">×</button>
+            <span class="section-label">QUICK ACTION</span>
+            <h2>Add Contribution</h2>
+            <p>This is the first version of the dashboard. The complete contribution form comes in the next step.</p>
+            <button class="primary-button" id="modalOk">Got it</button>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

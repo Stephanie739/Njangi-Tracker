@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Login to Njangi Tracker.">
+    <title>Login | Njangi Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/auth.css">
+</head>
+<body class="auth-page">
+    <!-- HEADER: logo and link back to the landing page -->
+    <header class="header">
+        <div class="container nav">
+            <a href="index.html" class="logo">
+                <span class="logo-mark">N</span>
+                <span>Njangi<span class="logo-accent">Tracker</span></span>
+            </a>
+            <a href="index.html" class="back-link">← Back to Home</a>
+        </div>
+    </header>
+
+    <!-- MAIN: login area containing an introduction and the login form -->
+    <main class="auth-main">
+        <div class="auth-container">
+            <!-- Left side: explains why the user is logging in -->
+            <div class="auth-intro">
+                <div class="badge"><span class="badge-dot"></span> Welcome back</div>
+                <h1>Login to your <span>Njangi</span></h1>
+                <p>Access your group dashboard, members, cycles and contribution records.</p>
+
+                <div class="auth-benefits">
+                    <div><span>✓</span> Manage your members</div>
+                    <div><span>✓</span> Track contributions</div>
+                    <div><span>✓</span> Monitor active cycles</div>
+                </div>
+            </div>
+
+            <!-- Right side: the actual login form -->
+            <div class="auth-card">
+                <div class="auth-card-heading">
+                    <h2>Welcome back</h2>
+                    <p>Enter your details to continue.</p>
+                </div>
+
+                <!-- novalidate lets JavaScript handle our custom validation messages. -->
+                <form id="loginForm" novalidate>
+                    <!-- EMAIL FIELD -->
+                    <!-- PASSWORD FIELD -->
+                    <div class="form-group">
+                        <label for="loginEmail">Email address</label>
+                        <input type="email" id="loginEmail" name="email" placeholder="you@example.com" autocomplete="email" required>
+                        <small class="error-message" id="loginEmailError"></small>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label for="loginPassword">Password</label>
+                            <a href="#" id="forgotPassword">Forgot password?</a>
+                        </div>
+                        <div class="password-wrap">
+                            <input type="password" id="loginPassword" name="password" placeholder="Enter your password" autocomplete="current-password" required>
+                            <button type="button" class="password-toggle" data-target="loginPassword" aria-label="Show password">Show</button>
+                        </div>
+                        <small class="error-message" id="loginPasswordError"></small>
+                    </div>
+
+                    <!-- Optional checkbox for remembering the user on this device. -->
+                    <label class="checkbox-row">
+                        <input type="checkbox" id="rememberMe">
+                        <span>Remember me</span>
+                    </label>
+
+                    <!-- Submit button: JavaScript checks the form before continuing. -->
+                    <button type="submit" class="btn btn-primary auth-submit">Login <span>→</span></button>
+                    <p class="form-message" id="loginMessage"></p>
+                </form>
+
+                <div class="auth-divider"><span>OR</span></div>
+
+                <p class="switch-auth">Don't have an account? <a href="register.html">Create one</a></p>
+            </div>
+        </div>
+    </main>
+
+    <!-- auth.js contains password toggling and login/register validation. -->
+    <script src="js/auth.js"></script>
+</body>
+</html>
