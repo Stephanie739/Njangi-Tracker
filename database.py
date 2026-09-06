@@ -28,6 +28,8 @@ def create_tables():
         frequency TEXT NOT NULL
         )
         """)
+    #Create the member table
+#This table stores informations about each member
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS members(
             member_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,6 +61,19 @@ def create_tables():
             payment_status TEXT NOT NULL,
             FOREIGN KEY (member_id) REFERENCES members(member_id),
             FOREIGN KEY (cycle_id) REFERENCES cycles(cycle_id)
+        )
+        """)
+#Loan tables
+#This shows the loan obtain by a specific member of a Njangi group from the Njangi amount contributed
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS loans(
+            loan_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            amount_repaid REAL NOT NULL DEFAULT 0,
+            STATUS TEXT NOT NULL DEFAULT 'ACTIVE',
+            FOREIGN KEY (member_id)
+            REFERENCES members(member_id)
         )
         """) 
     connection.commit()
@@ -163,6 +178,101 @@ def add_contribution(member_id, cycle_id, amount):
     connection.close()
     return contribution_id
 
+def issue_loan(member_id, amount):
+    """
+    Issue a loan to a member.
+    Parameters:
+        member_id (int): ID of the member recieving the loan
+        amount (float): Amount of the loan
+    Returns:
+        loan_id(int): ID of the newly created loan
+    """
+#A loan amount must be greater than zero
+    if amount <= 0:
+        print("Error: loan amount must be greater than zero.")
+        return None
+    connection = connect_db()
+    cursor = connection.cursor()
+#Check that the member exist
+    cursor.execute("""
+        SELECT member_id
+        FROM members
+        WHERE member_id = ?
+    """,(member_id,))
+    member = cursor.fetchone()
+    if member is None:
+        print("Error: member not found.")
+        connection.close()
+        return None
+#Create the loan
+    cursor.execute("""
+        INSERT INTO loans (member_id, amount)
+        VALUES (?, ?)
+    """, (member_id, amount))
+    connection.commit()
+    loan_id = cursor.lastrowid
+    connection.close()
+    return loan_id
+
+def repay_loan(loan_id, repayment_amount):
+    """
+    Repay part of the of an existing laon.
+    Parameters:
+        loan_id (int): ID of the loan 
+        repayment_amount (float): Amount the member wants to repay
+    Returns:
+        str: Update loan status
+    """
+#   repayment must be greater than zero
+    if repayment_amount <= 0:
+        print("Error: repayment amount must be greater than zero.")
+        return None
+    connection =connect_db()
+    cursor = connection.cursor()
+#Get the loan information
+    cursor.execute("""
+        SELECT amount, amount_repaid,status
+        FROM loans
+        WHERE loan_id = ?
+    """, (loan_id,))
+    loan = cursor.fetchone()
+#Check if a loan exist
+    if loan is None:
+        print("Error: loan not found.")
+        connection.close()
+        return None
+    amount = loan[0]
+    amount_repaid = loan[1]
+    status = loan[2]
+#Check if the loan has already been fully repaid
+    if status == "PAID":
+        print("Error: this loan has already been paid.")
+        connection.close()
+        return None
+#Calculate the remaining amount
+    remaining_amount = amount - amount_repaid
+#A repayment cannot be greater than what remains
+    if repayment_amount > remaining_amount:
+        print("Error: repayment cannot be greater than the remaining loan amount.")
+        connection.close()
+        return None
+#Add the repayment
+    new_amount_repaid = amount_repaid + repayment_amount
+#Determine the new status
+    if new_amount_repaid == amount:
+        new_status = "PAID"
+    else:
+        new_status = "ACTIVE"
+#Update the loan
+    cursor.execute("""
+        UPDATE loans
+        SET amount_repaid = ?, status = ?
+        WHERE loan_id = ?
+    """, (new_amount_repaid, new_status, loan_id))
+    connection.commit()
+    connection.close()
+    return new_status
+
 def get_groups():
     """
     Get all Njangi groups from database.
@@ -208,6 +318,24 @@ def get_cycles():
     cycles = cursor.fetchall()
     conn.close()
     return cycles
+
+def get_cycles_by_group(group_id):
+    """
+    Get all the cycles that are belonging to a specific Njangi group.
+    """
+    connection = connect_db()
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT cycles.*
+        FROM cycles
+        JOIN members
+        ON cycles.member_id = members.member_id
+        WHERE members.group_id = ?
+    """, (group_id,))
+    cycles = cursor.fetchall()
+    connection.close()
+    return cycles
+
 def get_contributions():
     """
     Get all the contributions made by the members in the database.
@@ -231,6 +359,20 @@ def get_contributions_by_cycle(cycle_id):
                    )
     contributions = cursor.fetchall()
     conn.close()
+    return contributions
+
+def contribution_by_group(group_id):
+    """
+    Get all the contributions belonging to a specific Njangi group.
+    """
+    connection = connect_db()
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT contributions. * FROM contributions
+        JOIN members ON contributions.member_id = members.member_id
+        WHERE members.group_id = ? """, (group_id,))
+    contributions = cursor.fetchall()
+    connection.close()
     return contributions
 
 def get_cycle_total(cycle_id):
@@ -301,12 +443,30 @@ def get_pool_summary(group_id, cycle_id):
         progress = 0
     else:
         progress = (collected_pool / expected_pool) * 100
-    return {
-        "expected_pool": expected_pool,
-        "collected_pool": collected_pool,
-        "remaining_pool": remaining_pool,
-        "progress": progress
-    }
+    return expected_pool, collected_pool,remaining_pool,progress
+
+def close_cycle(cycle_id, group_id):
+    """
+    Close a Njangi cycle once the expected contribution has been fully paid*
+    """
+#Get the amount expected amount for the group
+    expected_pool =  get_expected_pool(group_id)
+#Get the amount actually collected in this cycle
+    collected_pool = get_cycle_total(cycle_id)
+#Check if the cycle is fully paid
+    if collected_pool >= expected_pool:
+        connection = connect_db()
+        cursor = connection.cursor()
+        cursor.execute("""
+            UPDATE cycles
+            SET status = 'CLOSED'
+            WHERE cycle_id = ?
+        """, (cycle_id,))
+        connection.commit()
+        connection.close()
+        return "CLOSED"
+    else:
+        return "OPEN"
     
 def get_pending_contributions():
     """
@@ -316,11 +476,12 @@ def get_pending_contributions():
     cursor = conn.cursor()
     cursor.execute("""
         SELECT * FROM contributions 
-        WHERE payment_status = 'PENDING'
+        WHERE payment_status = 'Pending'
     """)
     contributions = cursor.fetchall()
     conn.close()
     return contributions
+
 def update_contribution_status(contribution_id, amount, status):
     """
     Update the payment status of a contribution
@@ -379,4 +540,17 @@ def validate_payment_amount(amount, expected_amount):
         return False
     #If all payment pass, the payment is valid
     return True
-    
+
+def get_loans_by_member(member_id):
+    """
+    Get all the loans belonging to a spacific member.
+    """
+    connection = connect_db()
+    cursor = connection.cursor()
+    cursor.execute("""
+        SELECT * FROM loans
+        WHERE member_id = ?
+    """, (member_id,))
+    loans = cursor.fetchall()
+    connection.close()
+    return loans
