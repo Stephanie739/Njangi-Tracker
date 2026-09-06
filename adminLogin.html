@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="Administrator login for Njangi Tracker."
+    >
+
+    <title>Admin Login | Njangi Tracker</title>
+
+
+    <!-- Google Font -->
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+        <link href="css/login.css" rel="stylesheet">
+</head>
+
+
+<body class="auth-page">
+
+
+    <!-- HEADER -->
+
+    <header class="header">
+
+        <div class="container nav">
+
+
+            <a href="index.html" class="logo">
+
+                <span class="logo-mark">
+                    N
+                </span>
+
+                <span>
+                    Njangi<span class="logo-accent">
+                        Tracker
+                    </span>
+                </span>
+
+            </a>
+
+
+            <a
+                href="index.html"
+                class="back-link"
+            >
+                ← Back to Home
+            </a>
+
+
+        </div>
+
+    </header>
+
+
+    <!-- MAIN -->
+
+    <main class="auth-main">
+
+        <div class="auth-container">
+
+
+            <!-- LEFT SIDE -->
+
+            <div class="auth-intro">
+
+                <div class="badge">
+
+                    <span class="badge-dot"></span>
+
+                    Administrator Access
+
+                </div>
+
+
+                <h1>
+
+                    Manage your
+                    <span>Njangi</span>
+
+                </h1>
+
+
+                <p>
+
+                    Login to the administrator dashboard
+                    to manage members, contributions,
+                    cycles and group activities.
+
+                </p>
+
+
+                <div class="auth-benefits">
+
+
+                    <div>
+
+                        <span>✓</span>
+
+                        Manage members
+
+                    </div>
+
+
+                    <div>
+
+                        <span>✓</span>
+
+                        Manage contributions
+
+                    </div>
+
+
+                    <div>
+
+                        <span>✓</span>
+
+                        Manage Njangi cycles
+
+                    </div>
+
+
+                </div>
+
+            </div>
+
+
+            <!-- ADMIN LOGIN CARD -->
+
+            <div class="auth-card">
+
+
+                <div class="auth-card-heading">
+
+                    <h2>
+                        Admin Login
+                    </h2>
+
+                    <p>
+                        Authorized administrators only.
+                    </p>
+
+                </div>
+
+
+                <!-- FORM -->
+
+                <form
+                    id="adminLoginForm"
+                    novalidate
+                >
+
+
+                    <!-- EMAIL -->
+
+                    <div class="form-group">
+
+                        <label for="adminEmail">
+                            Admin email
+                        </label>
+
+                        <input
+                            type="email"
+                            id="adminEmail"
+                            placeholder="admin@example.com"
+                            autocomplete="email"
+                            required
+                        >
+
+                        <small
+                            class="error-message"
+                            id="adminEmailError">
+                        </small>
+
+                    </div>
+
+
+                    <!-- PASSWORD -->
+
+                    <div class="form-group">
+
+                        <div class="label-row">
+
+                            <label for="adminPassword">
+                                Password
+                            </label>
+
+                            <a
+                                href="#"
+                                id="adminForgotPassword"
+                            >
+                                Forgot password?
+                            </a>
+
+                        </div>
+
+
+                        <div class="password-wrap">
+
+                            <input
+                                type="password"
+                                id="adminPassword"
+                                placeholder="Enter your password"
+                                autocomplete="current-password"
+                                required
+                            >
+
+                            <button
+                                type="button"
+                                class="password-toggle"
+                                data-target="adminPassword"
+                            >
+                                Show
+                            </button>
+
+                        </div>
+
+
+                        <small
+                            class="error-message"
+                            id="adminPasswordError">
+                        </small>
+
+                    </div>
+
+
+                    <!-- REMEMBER -->
+
+                    <label class="checkbox-row">
+
+                        <input
+                            type="checkbox"
+                            id="adminRemember"
+                        >
+
+                        <span>
+                            Remember me
+                        </span>
+
+                    </label>
+
+
+                    <!-- BUTTON -->
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary auth-submit"
+                    >
+
+                        Admin Login
+                        <span>→</span>
+
+                    </button>
+
+
+                    <!-- MESSAGE -->
+
+                    <p
+                        class="form-message"
+                        id="adminLoginMessage">
+                    </p>
+
+
+                </form>
+
+
+                <!-- DIVIDER -->
+
+                <div class="auth-divider">
+
+                    <span>OR</span>
+
+                </div>
+
+
+                <!-- MEMBER LOGIN -->
+
+                <p class="switch-auth">
+
+                    Are you a member?
+
+                    <a href="memberLogin.html">
+                        Member Login
+                    </a>
+
+                </p>
+
+
+            </div>
+
+        </div>
+
+    </main>
+
+
+    <!-- JAVASCRIPT -->
+
+    <script src="js/adminLogin.js"></script>
+
+</body>
+
+</html>
+
