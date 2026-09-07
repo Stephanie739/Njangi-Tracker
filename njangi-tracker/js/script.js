@@ -53,6 +53,7 @@ links.forEach((link) => {
 const currentYear = document.getElementById("currentYear");
 currentYear.textContent = new Date().getFullYear();
 
+
 // SCROLL REVEAL ANIMATION
 // Cards start hidden and become visible when they enter the screen.
 
