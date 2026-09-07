@@ -647,6 +647,7 @@ th {
         width: 100%;
     }
 
+    
     .main-content {
         width: min(100% - 28px, 1100px);
         padding-top: 25px;

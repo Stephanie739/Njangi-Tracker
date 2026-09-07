@@ -8,7 +8,7 @@
 /* 
 
    NJANGI TRACKER - MAIN STYLESHEET
-   
+
    */
 
 :root {
@@ -116,6 +116,7 @@ a {
 .nav-links a:not(.nav-button):hover {
     color: var(--primary);
 }
+
 
 .nav-button {
     padding: 11px 18px;
