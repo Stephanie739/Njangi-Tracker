@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 #Flask create the web app
 #request recieve data from the frontend
 #jsonify send JSON response to the frontend
-from database import add_contribution
+from database import add_contribution, get_cycles_by_group
 #create the Flask application
 app = Flask(__name__)
 # The route then sends this information to
@@ -35,6 +35,24 @@ def log_payment():
         "message": "Payment logged successfully",
         "contribution_id": contribution_id
     }), 201
-# This runs the Flask server when we execute:
+#This route allows the frontend retrieves the history cycle belonging to a specific Njangi group
+@app.route("/cycles/<int:group_id>", methods=["GET"])
+def cycle_history(group_id):
+    #Get the cycle history for the specified group ID from the database
+    cycles = get_cycles_by_group(group_id)
+    cycle_history_data = []
+    for cycle in cycles:
+        cycle_history_data.append({
+            "cycle_id": cycle[0],
+            "member_id": cycle[1],
+            "cycle_number": cycle[2],
+            "status": cycle[3]
+        })
+        #Send the cycle history data as a JSON response to the frontend
+        return jsonify({
+            "cycles": cycle_history_data,
+            "group_id" : group_id
+        }),200
 if __name__ == "__main__":
     app.run(debug=True)
+    
