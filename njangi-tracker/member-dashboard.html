@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/member-dashboard.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
     <aside class="sidebar" id="sidebar">
@@ -20,12 +21,12 @@
         <div class="group-switcher">
             <small>ACTIVE GROUP</small>
             <strong>Njangi Group</strong>
-            <span>Cycle #05</span>
+            <span>Current cycle</span>
         </div>
 
         <nav class="side-nav">
             <a href="member-dashboard.html" class="active"><span>▦</span> My Dashboard</a>
-            <a href="#loan-request"><span>🏦</span> Request Loan</a>
+            <a href="#loan-request"><span>LN</span> Request Loan</a>
         </nav>
 
         <div class="sidebar-bottom">
@@ -55,7 +56,7 @@
             <section class="page-heading">
                 <div>
                     <span class="section-label">MEMBER VIEW</span>
-                    <h1>Hello, <span id="welcomeName">Member</span> 👋</h1>
+                    <h1>Member dashboard</h1>
                     <p>Your contributions, cycle progress, and loan requests.</p>
                 </div>
             </section>
@@ -65,7 +66,7 @@
                 <div class="panel-heading">
                     <div>
                         <span class="section-label">ACTIVE CYCLE</span>
-                        <h2>Cycle #05</h2>
+                        <h2>Current cycle</h2>
                     </div>
                     <span class="status-pill">Active</span>
                 </div>
@@ -73,25 +74,25 @@
                 <div class="cycle-amounts">
                     <div>
                         <small>Collected</small>
-                        <strong id="collectedAmount">350,000 FCFA</strong>
+                        <strong id="collectedAmount">Loading...</strong>
                     </div>
                     <div>
                         <small>Target</small>
-                        <strong>500,000 FCFA</strong>
+                        <strong id="cycleTargetAmount">Loading...</strong>
                     </div>
                 </div>
 
                 <div class="large-progress">
-                    <div class="large-progress-fill" id="progressFill" style="width: 70%"></div>
+                    <div class="large-progress-fill" id="progressFill" style="width: 0%"></div>
                 </div>
                 <div class="progress-labels">
-                    <span id="remainingAmount">150,000 FCFA remaining</span>
-                    <strong id="progressText">70%</strong>
+                    <span id="remainingAmount">Loading current cycle...</span>
+                    <strong id="progressText">Loading...</strong>
                 </div>
 
                 <div class="cycle-details">
-                    <div><span>Started</span><strong>01 Aug 2026</strong></div>
-                    <div><span>Members paid</span><strong id="membersPaid">18 / 25</strong></div>
+                    <div><span>Started</span><strong>Loading start date...</strong></div>
+                    <div><span>Members paid</span><strong id="membersPaid">Loading...</strong></div>
                 </div>
             </section>
 
@@ -119,7 +120,7 @@
                         </div>
                         <div>
                             <small>Expected</small>
-                            <strong id="expectedAmount">20,000 FCFA</strong>
+                            <strong id="expectedAmount">Loading...</strong>
                         </div>
                     </div>
                 </div>

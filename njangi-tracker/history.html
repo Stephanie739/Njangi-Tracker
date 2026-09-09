@@ -6,15 +6,16 @@
   <title>History | Njangi Tracker</title>
   <link rel="stylesheet" href="css/dashboard.css">
   <link rel="stylesheet" href="css/history.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
   <!-- SIDEBAR: Same design as the dashboard. -->
   <aside class="sidebar" id="sidebar">
     <a href="dashboard.html" class="logo"><span class="logo-mark">N</span><span>Njangi<span class="logo-accent">Tracker</span></span></a>
-    <div class="group-switcher"><small>ACTIVE GROUP</small><strong>Njangi Group</strong><span>Cycle #05</span></div>
+    <div class="group-switcher"><small>ACTIVE GROUP</small><strong>Njangi Group</strong><span>Current cycle</span></div>
     <nav class="side-nav">
       <a href="dashboard.html"><span>▦</span> Dashboard</a>
-      <a href="members.html"><span>👥</span> Members</a>
+      <a href="members.html"><span>MB</span> Members</a>
       <a href="cycles.html"><span>↻</span> Cycles</a>
       <a href="contributions.html"><span>₣</span> Contributions</a>
       <a href="history.html" class="active"><span>◷</span> History</a>
@@ -27,7 +28,7 @@
     <header class="topbar">
       <button class="mobile-menu" id="mobileMenu" aria-label="Open menu">☰</button>
       <div class="topbar-search"><span>⌕</span><input id="historySearch" type="search" placeholder="Search history..."></div>
-      <div class="topbar-user"><div class="notification">🔔<span></span></div><div class="user-avatar">NG</div><div class="user-info"><strong>Njangi Admin</strong><small>Administrator</small></div></div>
+      <div class="topbar-user"><div class="notification">Alerts<span></span></div><div class="user-avatar">NG</div><div class="user-info"><strong>Njangi Admin</strong><small>Administrator</small></div></div>
     </header>
 
     <main class="main-content">
@@ -36,8 +37,8 @@
       <!-- SUMMARY CARDS -->
       <section class="stats-grid">
         <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon green">₣</span><span class="trend">All time</span></div><small>Total Contributions</small><h2 id="historyTotal">0 FCFA</h2><p>Recorded payments</p></div>
-        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon blue">🧾</span><span class="neutral">Records</span></div><small>Payment Records</small><h2 id="historyCount">0</h2><p>Transactions stored</p></div>
-        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon orange">👥</span><span class="neutral">Members</span></div><small>Members Involved</small><h2 id="historyMembers">0</h2><p>Unique contributors</p></div>
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon blue">HS</span><span class="neutral">Records</span></div><small>Payment Records</small><h2 id="historyCount">0</h2><p>Transactions stored</p></div>
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon orange">MB</span><span class="neutral">Members</span></div><small>Members Involved</small><h2 id="historyMembers">0</h2><p>Unique contributors</p></div>
         <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon purple">↻</span><span class="neutral">Cycles</span></div><small>Cycles Created</small><h2 id="historyCycles">0</h2><p>Cycle records</p></div>
       </section>
 

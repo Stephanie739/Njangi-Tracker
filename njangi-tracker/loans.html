@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/loans.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
     <!-- ==================================================
@@ -23,16 +24,16 @@
         <div class="group-switcher">
             <small>ACTIVE GROUP</small>
             <strong>Njangi Group</strong>
-            <span>Cycle #05</span>
+            <span>Current cycle</span>
         </div>
 
         <nav class="side-nav">
             <a href="dashboard.html"><span>▦</span> Dashboard</a>
-            <a href="members.html"><span>👥</span> Members</a>
+            <a href="members.html"><span>MB</span> Members</a>
             <a href="cycles.html"><span>↻</span> Cycles</a>
             <a href="contributions.html"><span>₣</span> Contributions</a>
             <a href="history.html"><span>◷</span> History</a>
-            <a href="loans.html" class="active"><span>🏦</span> Emergency Loans</a>
+            <a href="loans.html" class="active"><span>LN</span> Emergency Loans</a>
         </nav>
 
         <div class="sidebar-bottom">
@@ -57,7 +58,7 @@
             </div>
 
             <div class="topbar-user">
-                <div class="notification">🔔<span></span></div>
+                <div class="notification">Alerts<span></span></div>
                 <div class="user-avatar" id="userAvatar">NG</div>
                 <div class="user-info">
                     <strong id="userName">Njangi Admin</strong>
@@ -82,7 +83,7 @@
             <section class="stats-grid">
                 <div class="stat-box">
                     <div class="stat-box-top">
-                        <span class="dashboard-icon orange">📝</span>
+                        <span class="dashboard-icon orange">LN</span>
                         <span class="neutral">Open</span>
                     </div>
                     <small>Pending Requests</small>
@@ -102,7 +103,7 @@
 
                 <div class="stat-box">
                     <div class="stat-box-top">
-                        <span class="dashboard-icon blue">👥</span>
+                        <span class="dashboard-icon blue">MB</span>
                         <span class="neutral">Borrowers</span>
                     </div>
                     <small>Members With Loans</small>
@@ -112,7 +113,7 @@
 
                 <div class="stat-box">
                     <div class="stat-box-top">
-                        <span class="dashboard-icon purple">★</span>
+                        <span class="dashboard-icon green">★</span>
                         <span class="trend">Score</span>
                     </div>
                     <small>Average Reliability</small>
@@ -181,7 +182,7 @@
                         <tbody id="loanTableBody"></tbody>
                     </table>
                     <div class="empty-state" id="emptyState">
-                        <div>🏦</div>
+                        <div>LN</div>
                         <h3>No loan requests</h3>
                         <p>Loan requests will appear here.</p>
                     </div>
