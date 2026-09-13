@@ -1,0 +1,24 @@
+/* =========================================
+   NJANGI TRACKER - ADMIN LOGIN
+   ========================================= */
+
+/*
+   The admin login uses exactly the same
+   design as the member login.
+*/
+
+@import url("memberLogin.css");
+
+
+/* Small visual difference for admin access */
+
+.auth-intro .badge {
+    letter-spacing: 0.1px;
+}
+
+
+/* Admin button */
+
+.auth-submit {
+    font-weight: 700;
+}
