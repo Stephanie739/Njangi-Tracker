@@ -69,4 +69,4 @@ Product Backlog — tracked as GitHub Issues, one per task (see docs/github_issu
 User Stories — see docs/user_stories.md, organized into epics with Given/When/Then acceptance criteria
 Sprints — tracked via GitHub Milestones
 Sprint Board — tracked via this repository's GitHub Project (Kanban) board
-Team Organization — each of the four members owns a distinct area of the system, working on individual branches and merging into main via Pull Requests that reference the issue they close (e.g. Closes #1)
+Team Organization — each of the four members owns a distinct area of the system, working on individual branches and merging into main via Pull Requests that reference the issue they close (e.g. Closes #1)git
