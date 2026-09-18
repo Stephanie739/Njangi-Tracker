@@ -1,0 +1,185 @@
+/* =====================================================
+   MEMBERS PAGE - extra styles
+   The main dashboard.css supplies the shared design.
+   ===================================================== */
+.member-toolbar {
+   display: grid;
+   grid-template-columns: 2fr 1fr 1fr;
+   gap: 12px;
+   margin: 20px 0
+}
+
+.member-toolbar input,
+.member-toolbar select {
+   width: 100%;
+   padding: 12px 14px;
+   border: 1px solid #e1e8e3;
+   border-radius: 10px;
+   background: #fff;
+   outline: none
+}
+
+.member-toolbar input:focus,
+.member-toolbar select:focus {
+   border-color: #176b4d
+}
+
+.status.partial {
+   background: #fff4dc;
+   color: #9a6400
+}
+
+.status.pending {
+   background: #fff0ee;
+   color: #b12d21
+}
+
+.status.paid {
+   background: #e8f5ef;
+   color: #176b4d
+}
+
+.status.not-enrolled {
+   background: #eef1f3;
+   color: #5d6864
+}
+
+.table-wrap table {
+   min-width: 1050px
+}
+
+.position-number {
+   font-weight: 800;
+   color: #176b4d
+}
+
+.member-cell {
+   display: flex;
+   align-items: center;
+   gap: 10px
+}
+
+.member-mini-avatar {
+   width: 34px;
+   height: 34px;
+   border-radius: 10px;
+   background: #e8f5ef;
+   display: grid;
+   place-items: center;
+   font-size: 11px;
+   font-weight: 800;
+   color: #176b4d
+}
+
+.reliability {
+   font-weight: 700
+}
+
+.reliability.good {
+   color: #176b4d
+}
+
+.reliability.medium {
+   color: #9a6400
+}
+
+.reliability.low {
+   color: #b12d21
+}
+
+.row-actions {
+   display: flex;
+   gap: 6px
+}
+
+.table-action {
+   border: 0;
+   border-radius: 8px;
+   padding: 7px 9px;
+   font-size: 11px
+}
+
+.table-action.edit {
+   background: #edf3ff;
+   color: #315caa
+}
+
+.table-action.delete {
+   background: #fff0ee;
+   color: #b12d21
+}
+
+.checkbox-label {
+   display: flex !important;
+   align-items: center;
+   gap: 8px
+}
+
+.checkbox-label input {
+   width: auto !important
+}
+
+.wide-modal {
+   width: min(680px, 100%)
+}
+
+.form-grid {
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   gap: 15px;
+   margin-top: 20px
+}
+
+.form-grid label {
+   font-size: 12px;
+   font-weight: 700
+}
+
+.form-grid label>input {
+   display: block;
+   width: 100%;
+   margin-top: 7px;
+   padding: 12px;
+   border: 1px solid #e1e8e3;
+   border-radius: 9px;
+   outline: none
+}
+
+.form-grid label>input:focus {
+   border-color: #176b4d
+}
+
+.form-actions {
+   grid-column: 1/-1;
+   display: flex;
+   justify-content: flex-end;
+   gap: 10px;
+   margin-top: 5px
+}
+
+.outline-button {
+   border: 1px solid #d9e2dd;
+   background: #fff;
+   color: #31403a;
+   border-radius: 10px;
+   padding: 12px 16px;
+   font-weight: 700
+}
+
+@media(max-width:800px) {
+   .member-toolbar {
+      grid-template-columns: 1fr
+   }
+
+   .form-grid {
+      grid-template-columns: 1fr
+   }
+
+   .form-actions {
+      grid-column: auto
+   }
+
+   .wide-modal {
+      padding: 20px
+   }
+}
