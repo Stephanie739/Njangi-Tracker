@@ -46,7 +46,6 @@ Once every member has paid in full, the Group Admin closes the cycle. The app ha
 Beyond record-keeping: the loan feature
 
 Money doesn't have to sit idle between rotations. A member facing an unexpected expense can request a loan directly against the group's current pool. The Group Admin approves it, the system disburses it, and the borrower repays in installments — with a small interest rate that stays with the group rather than going to an outside lender. This mirrors what many real Njangi groups already do informally; the app just makes it visible, trackable, and fair to everyone, not just whoever the treasurer likes best.
----
 
 ## Features
 
