@@ -1,0 +1,608 @@
+/* =========================================
+   NJANGI TRACKER LOGIN PAGES
+   ========================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+:root {
+    --primary: #176b4d;
+    --primary-light: #eef7f2;
+    --text: #17231d;
+    --muted: #718078;
+    --border: #dce4df;
+    --white: #ffffff;
+    --shadow: 0 20px 50px rgba(23, 107, 77, 0.08);
+}
+
+
+/* PAGE */
+
+body {
+    margin: 0;
+    font-family: "Inter", sans-serif;
+    color: var(--text);
+}
+
+.auth-page {
+    min-height: 100vh;
+
+    background:
+        radial-gradient(
+            circle at 8% 25%,
+            rgba(23, 107, 77, 0.09),
+            transparent 28%
+        ),
+        linear-gradient(
+            135deg,
+            #f8faf9 0%,
+            #ffffff 65%,
+            #eef7f2 100%
+        );
+}
+
+
+/* HEADER */
+
+.header {
+    width: 100%;
+}
+
+.container {
+    width: min(92%, 1100px);
+    margin: auto;
+}
+
+.nav {
+    height: 76px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+
+/* LOGO */
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+
+    color: var(--text);
+    text-decoration: none;
+
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.logo-mark {
+    width: 34px;
+    height: 34px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 10px;
+
+    color: white;
+    background: var(--primary);
+
+    font-weight: 800;
+}
+
+.logo-accent {
+    color: var(--primary);
+}
+
+
+/* BACK LINK */
+
+.back-link {
+    color: var(--muted);
+
+    font-size: 0.82rem;
+    font-weight: 600;
+
+    text-decoration: none;
+}
+
+.back-link:hover {
+    color: var(--primary);
+}
+
+
+/* MAIN */
+
+.auth-main {
+    min-height: calc(100vh - 76px);
+
+    display: flex;
+    align-items: center;
+
+    padding: 65px 0;
+}
+
+
+/* TWO COLUMNS */
+
+.auth-container {
+    width: min(92%, 1040px);
+
+    margin: auto;
+
+    display: grid;
+
+    grid-template-columns: 0.9fr 0.75fr;
+
+    gap: 80px;
+
+    align-items: center;
+}
+
+
+/* INTRO */
+
+.auth-intro h1 {
+    max-width: 500px;
+
+    margin: 20px 0 0;
+
+    font-size: clamp(2.5rem, 5vw, 4rem);
+
+    line-height: 1.06;
+
+    letter-spacing: -2.5px;
+}
+
+.auth-intro h1 span {
+    color: var(--primary);
+}
+
+.auth-intro > p {
+    max-width: 500px;
+
+    margin-top: 20px;
+
+    color: var(--muted);
+
+    font-size: 0.98rem;
+
+    line-height: 1.6;
+}
+
+
+/* BADGE */
+
+.badge {
+    width: fit-content;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 8px 12px;
+
+    border-radius: 99px;
+
+    color: var(--primary);
+
+    background: var(--primary-light);
+
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.badge-dot {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: var(--primary);
+}
+
+
+/* BENEFITS */
+
+.auth-benefits {
+    display: grid;
+
+    gap: 13px;
+
+    margin-top: 30px;
+}
+
+.auth-benefits div {
+    display: flex;
+    align-items: center;
+
+    gap: 11px;
+
+    color: #45534c;
+
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.auth-benefits span {
+    width: 28px;
+    height: 28px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 9px;
+
+    color: var(--primary);
+
+    background: var(--primary-light);
+
+    font-size: 0.64rem;
+    font-weight: 800;
+}
+
+
+/* LOGIN CARD */
+
+.auth-card {
+    padding: 34px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 22px;
+
+    background: rgba(255, 255, 255, 0.96);
+
+    box-shadow: var(--shadow);
+}
+
+
+/* CARD HEADING */
+
+.auth-card-heading h2 {
+    margin: 0;
+
+    font-size: 1.45rem;
+
+    letter-spacing: -0.7px;
+}
+
+.auth-card-heading p {
+    margin-top: 5px;
+
+    color: var(--muted);
+
+    font-size: 0.78rem;
+}
+
+
+/* FORM */
+
+.auth-card form {
+    margin-top: 25px;
+}
+
+.form-group {
+    margin-bottom: 17px;
+}
+
+
+/* LABELS */
+
+.form-group label,
+.label-row label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: #3c4842;
+
+    font-size: 0.75rem;
+
+    font-weight: 700;
+}
+
+.label-row {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+}
+
+.label-row a {
+    margin-bottom: 7px;
+
+    color: var(--primary);
+
+    font-size: 0.68rem;
+
+    font-weight: 700;
+}
+
+
+/* INPUTS */
+
+.form-group input {
+    width: 100%;
+    height: 46px;
+
+    padding: 0 13px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 10px;
+
+    outline: none;
+
+    color: var(--text);
+
+    background: #fbfcfb;
+
+    font-family: "Inter", sans-serif;
+
+    font-size: 0.8rem;
+
+    transition: 0.2s ease;
+}
+
+.form-group input:focus {
+    border-color: var(--primary);
+
+    background: white;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(23, 107, 77, 0.08);
+}
+
+.form-group input.input-error {
+    border-color: #c44f4f;
+}
+
+
+/* REMOVE BROWSER AUTOFILL YELLOW */
+
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #fbfcfb inset;
+    -webkit-text-fill-color: var(--text);
+}
+
+
+/* PASSWORD */
+
+.password-wrap {
+    position: relative;
+}
+
+.password-wrap input {
+    padding-right: 58px;
+}
+
+.password-toggle {
+    position: absolute;
+
+    top: 50%;
+    right: 12px;
+
+    transform: translateY(-50%);
+
+    border: 0;
+
+    color: var(--primary);
+
+    background: transparent;
+
+    cursor: pointer;
+
+    font-family: "Inter", sans-serif;
+
+    font-size: 0.68rem;
+
+    font-weight: 800;
+}
+
+
+/* REMEMBER ME */
+
+.checkbox-row {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin: 5px 0 19px;
+
+    color: var(--muted);
+
+    font-size: 0.7rem;
+
+    cursor: pointer;
+}
+
+.checkbox-row input {
+    width: 15px;
+    height: 15px;
+
+    accent-color: var(--primary);
+}
+
+
+/* ERRORS */
+
+.error-message {
+    display: block;
+
+    margin-top: 4px;
+
+    color: #b13e3e;
+
+    font-size: 0.64rem;
+}
+
+
+/* LOGIN BUTTON */
+
+.auth-submit {
+    width: 100%;
+    height: 46px;
+
+    border: 0;
+
+    border-radius: 10px;
+
+    color: white;
+
+    background: var(--primary);
+
+    cursor: pointer;
+
+    font-family: "Inter", sans-serif;
+
+    font-size: 0.8rem;
+
+    font-weight: 700;
+
+    transition: 0.2s ease;
+}
+
+.auth-submit:hover {
+    background: #12583f;
+}
+
+.auth-submit span {
+    margin-left: 5px;
+}
+
+
+/* MESSAGE */
+
+.form-message {
+    min-height: 18px;
+
+    margin-top: 10px;
+
+    text-align: center;
+
+    font-size: 0.7rem;
+
+    font-weight: 600;
+}
+
+.form-message.success {
+    color: var(--primary);
+}
+
+.form-message.error {
+    color: #b13e3e;
+}
+
+
+/* DIVIDER */
+
+.auth-divider {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin: 22px 0;
+
+    color: #a0aaa4;
+
+    font-size: 0.62rem;
+
+    font-weight: 700;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+
+    height: 1px;
+
+    flex: 1;
+
+    background: var(--border);
+}
+
+
+/* SWITCH LOGIN */
+
+.switch-auth {
+    color: var(--muted);
+
+    text-align: center;
+
+    font-size: 0.72rem;
+}
+
+.switch-auth a {
+    color: var(--primary);
+
+    font-weight: 800;
+}
+
+
+/* MOBILE */
+
+@media (max-width: 850px) {
+
+    .auth-container {
+        grid-template-columns: 1fr;
+
+        max-width: 560px;
+
+        gap: 40px;
+    }
+
+    .auth-intro {
+        text-align: center;
+    }
+
+    .auth-intro .badge {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .auth-intro h1,
+    .auth-intro > p {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .auth-benefits {
+        width: fit-content;
+
+        margin-left: auto;
+        margin-right: auto;
+
+        text-align: left;
+    }
+}
+
+
+/* SMALL PHONES */
+
+@media (max-width: 520px) {
+
+    .auth-main {
+        padding: 40px 0 55px;
+    }
+
+    .auth-card {
+        padding: 25px 20px;
+
+        border-radius: 17px;
+    }
+
+    .back-link {
+        font-size: 0.7rem;
+    }
+}
