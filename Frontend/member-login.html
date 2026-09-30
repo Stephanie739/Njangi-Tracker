@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Secure member login for Njangi Tracker">
+    <title>Member Sign In | Njangi Tracker</title>
+    <link rel="stylesheet" href="css/member-auth.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body class="auth-page">
+    <header class="header">
+        <div class="container nav">
+            <a href="index.html" class="logo" aria-label="Njangi Tracker home">
+                <span class="logo-mark">N</span>
+                <span>Njangi<span class="logo-accent">Tracker</span></span>
+            </a>
+            <a href="login.html" class="back-link">Admin sign in →</a>
+        </div>
+    </header>
+
+    <main class="auth-main">
+        <div class="auth-container member-login-layout">
+            <section class="auth-intro">
+                <div class="badge"><span class="badge-dot"></span> Member portal</div>
+                <h1>Welcome back.</h1>
+                <p>Sign in with the Member ID given to you by your Njangi administrator.</p>
+                <div class="auth-benefits">
+                    <div><span>01</span> Enter your Member ID</div>
+                    <div><span>02</span> Enter your password</div>
+                    <div><span>03</span> Open your member dashboard</div>
+                </div>
+                <div class="login-help">
+                    <strong>Where do I find my Member ID?</strong>
+                    <p>Your administrator gives you this ID when your member account is created. It looks like <strong>MBR-000123</strong>.</p>
+                </div>
+            </section>
+
+            <section class="auth-card">
+                <div class="auth-card-heading">
+                    <h2>Member sign in</h2>
+                    <p>No Njangi group name is required.</p>
+                </div>
+
+                <form id="memberLoginForm" novalidate>
+                    <div class="form-group">
+                        <label for="memberCode">Member ID</label>
+                        <input id="memberCode" type="text" inputmode="text" maxlength="10"
+                               placeholder="MBR-000123" autocomplete="username" required
+                               autocapitalize="characters" spellcheck="false">
+                        <small class="hint">Use the Member ID provided by your administrator.</small>
+                        <small class="error-message" id="memberCodeError"></small>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label for="memberPassword">Password</label>
+                            <a href="forgot-password.html?role=member">Forgot password?</a>
+                        </div>
+                        <div class="password-wrap">
+                            <input type="password" id="memberPassword" placeholder="Enter your password"
+                                   autocomplete="current-password" required>
+                            <button type="button" class="password-toggle" data-target="memberPassword" aria-label="Show password">Show</button>
+                        </div>
+                        <small class="error-message" id="memberPasswordError"></small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary auth-submit" id="memberLoginButton">
+                        Sign in <span>→</span>
+                    </button>
+                    <p class="form-message" id="memberLoginMessage" role="alert" aria-live="polite"></p>
+                </form>
+
+                <div class="auth-divider"><span>OR</span></div>
+                <p class="switch-auth">Group administrator? <a href="login.html">Admin sign in</a></p>
+            </section>
+        </div>
+    </main>
+
+    <footer class="auth-legal-links">
+        <a href="privacy-policy.html">Privacy Policy</a><span>·</span>
+        <a href="terms.html">Terms &amp; Conditions</a>
+    </footer>
+
+    <script src="js/api.js"></script>
+    <script src="js/member-auth.js"></script>
+</body>
+</html>
