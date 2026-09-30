@@ -21,15 +21,7 @@ if(f)f.onsubmit=async e=>{
     resetMessage.textContent=x.message;
   }
 };
-
-const vf=document.getElementById('verifyForm');
-if(vf)vf.onsubmit=async e=>{
-  e.preventDefault();
-  try{
-    const d=await api('/auth/verify-pin',{
-      method:'POST',
-      body:JSON.stringify({reset_token:token,pin:pin.value})
-    });
+});
     sessionStorage.setItem('reset_token',d.reset_token||token);
     sessionStorage.setItem('reset_role',d.role||'');
     location.href='reset-password.html?token='+encodeURIComponent(d.reset_token||token);
