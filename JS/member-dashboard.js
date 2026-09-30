@@ -4,7 +4,6 @@
   userName.textContent=me.name;
   userAvatar.textContent=me.name.slice(0,2).toUpperCase();
   logoutBtn.onclick=logout;
-  menuBtn.onclick=()=>{sidebar.classList.toggle('open');overlay.classList.toggle('show')};
 
   function renderLoans(loans){
     myLoansTable.innerHTML=loans.map(x=>`<tr>
@@ -50,10 +49,36 @@
     e.preventDefault();
     loanMessage.textContent='Submitting...';
     try{
-      await api('/loans',{method:'POST',body:JSON.stringify({amount:loanAmount.value,reason:loanReason.value})});
+      const payload={amount:loanAmount.value,reason:loanReason.value,payback_months:1,required_guarantors:1};
+      try{
+        await api('/v1/loans/apply',{method:'POST',body:JSON.stringify(payload)});
+      }catch(v1err){
+        await api('/loans',{method:'POST',body:JSON.stringify(payload)});
+      }
       e.target.reset();
       loanMessage.textContent='Loan request submitted. The group admin can now review it.';
+      toast('Loan request submitted');
       await loadDashboard();
     }catch(x){loanMessage.textContent=x.message}
   };
-})().catch(e=>alert(e.message));
+
+  window.exportPassbook=async()=>{
+    const token=localStorage.getItem('njangi_token');
+    const uid=(user()||{}).id;
+    if(!uid){alert('Not signed in');return}
+    const r=await fetch('/api/v1/members/'+uid+'/passbook/export',{headers:{Authorization:'Bearer '+token}});
+    if(!r.ok){const d=await r.json().catch(()=>({}));alert(d.error||'Export failed');return}
+    const blob=await r.blob();
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='passbook.pdf';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Passbook downloaded');
+  };
+  window.submitMyBid=async(discount)=>{
+    const r=await api('/v1/payouts/bid',{method:'POST',body:JSON.stringify({discount_amount:discount})});
+    toast(r.message||'Bid submitted');
+    return r;
+  };
+})().catch(e=>{if(!/session expired/i.test(e.message))alert(e.message)});
