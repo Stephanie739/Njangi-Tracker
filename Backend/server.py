@@ -212,12 +212,32 @@ def ensure_schema():
             c.execute(sql)
         except sqlite3.OperationalError:
             pass
+    # Rules enforced by the database itself, as a backstop behind the checks in the routes.
+    # An older database may already hold duplicates; in that case skip the rule with a
+    # warning instead of refusing to start.
+    for name, sql in (
+        ("idx_cycles_group_number",
+         "CREATE UNIQUE INDEX IF NOT EXISTS idx_cycles_group_number ON cycles(group_id, number)"),
+        ("idx_members_group_email",
+         "CREATE UNIQUE INDEX IF NOT EXISTS idx_members_group_email ON members(group_id, lower(email)) "
+         "WHERE email IS NOT NULL AND email <> ''"),
+        ("idx_members_group_position",
+         "CREATE UNIQUE INDEX IF NOT EXISTS idx_members_group_position ON members(group_id, rotation_position) "
+         "WHERE enrolled=1"),
+    ):
+        try:
+            c.execute(sql)
+        except sqlite3.DatabaseError as exc:
+            print(f"WARNING: database rule {name} not applied ({exc}). Existing data may contain duplicates.")
     c.commit()
     c.close()
 
 
 def valid_email(value):
     return bool(EMAIL_RE.fullmatch(str(value or "").strip().lower()))
+
+
+UNSET_PASSWORD_HASH = "unset"  # not a valid salt:digest pair, so check_password() always refuses it
 
 
 def hash_password(password, salt=None):
@@ -414,6 +434,48 @@ def add_reliability(data, c, member_id, group_id):
     return data
 
 
+def next_rotation_position(c, group_id):
+    row = c.execute(
+        "SELECT COALESCE(MAX(rotation_position),0)+1 AS n FROM members WHERE group_id=?", (group_id,)
+    ).fetchone()
+    return row["n"]
+
+
+def check_rotation_position(c, group_id, raw, enrolled, exclude_id=None):
+    """Validate a rotation position and return (position, error_message).
+
+    A blank value means "put this member at the end of the rotation". Enrolled members
+    must each have a different position inside their group."""
+    if raw is None or str(raw).strip() == "":
+        return next_rotation_position(c, group_id), None
+    try:
+        position = int(raw)
+    except (TypeError, ValueError):
+        return None, "Rotation position must be a whole number."
+    if position < 1:
+        return None, "Rotation position must be 1 or higher."
+    if enrolled:
+        taken = c.execute(
+            "SELECT name FROM members WHERE group_id=? AND enrolled=1 AND rotation_position=? AND id IS NOT ?",
+            (group_id, position, exclude_id),
+        ).fetchone()
+        if taken:
+            return None, f"Rotation position {position} is already taken by {taken['name']}."
+    return position, None
+
+
+def member_has_records(c, member_id):
+    """True when deleting this member would erase payment, loan or cycle history."""
+    checks = (
+        "SELECT 1 FROM contributions WHERE member_id=?",
+        "SELECT 1 FROM loans WHERE member_id=?",
+        "SELECT 1 FROM cycles WHERE recipient_id=?",
+        "SELECT 1 FROM cycle_member_expected e JOIN cycles cy ON cy.id=e.cycle_id "
+        "WHERE e.member_id=? AND cy.status='CLOSED'",
+    )
+    return any(c.execute(q, (member_id,)).fetchone() for q in checks)
+
+
 def dashboard(c, group_id):
     cycle = active_cycle(c, group_id)
     members = c.execute(
@@ -494,17 +556,35 @@ def send_reset_email(email, code):
         return False, str(exc)
 
 
-def account_by_email(c, email):
-    row = c.execute(
+def account_by_email(c, email, role_hint=None):
+    """Look up an account by email.
+
+    The same email can legitimately belong to BOTH an admin account (in one
+    group) and a member account (in a different group) — see the earlier
+    fix allowing a person to be an admin of their own group while also
+    being a member of someone else's. When that happens, role_hint (which
+    login/forgot-password page the request came from) decides which
+    account this particular reset is for, instead of always preferring
+    whichever table happens to be checked first.
+    """
+    admin_row = c.execute(
         "SELECT id,name,email,group_id FROM admins WHERE lower(email)=?", (email,)
     ).fetchone()
-    if row:
-        return "admin", row
-    row = c.execute(
-        "SELECT id,name,email,group_id FROM members WHERE lower(email)=?", (email,)
+    member_row = c.execute(
+        "SELECT id,name,email,group_id FROM members WHERE lower(email)=? AND enrolled=1", (email,)
     ).fetchone()
-    if row:
-        return "member", row
+
+    if role_hint == "member" and member_row:
+        return "member", member_row
+    if role_hint == "admin" and admin_row:
+        return "admin", admin_row
+
+    # No hint, or the hinted role doesn't exist for this email: fall back
+    # to whichever account actually exists (admin checked first, as before).
+    if admin_row:
+        return "admin", admin_row
+    if member_row:
+        return "member", member_row
     return None, None
 
 
@@ -519,7 +599,8 @@ def password_reset_forgot(handler, c):
         "ok": True,
         "message": "If that email is registered, a 6-digit PIN has been sent.",
     }
-    typ, account = account_by_email(c, email)
+    role_hint = data.get("role") if data.get("role") in ("admin", "member") else None
+    typ, account = account_by_email(c, email, role_hint)
     if not account:
         return send_json(handler, generic)
 
@@ -596,7 +677,15 @@ def password_reset_verify(handler, c):
         return error(handler, f"Invalid PIN. {remaining} attempts remaining.", 400)
     c.execute("UPDATE reset_tokens SET verified=1 WHERE id=?", (row["id"],))
     c.commit()
-    return send_json(handler, {"ok": True, "reset_token": token, "verified": True})
+    return send_json(
+        handler,
+        {
+            "ok": True,
+            "reset_token": token,
+            "verified": True,
+            "role": row["user_type"],
+        },
+    )
 
 
 def password_reset_finish(handler, c):
@@ -623,7 +712,14 @@ def password_reset_finish(handler, c):
         (row["user_type"], row["user_id"]),
     )
     c.commit()
-    return send_json(handler, {"ok": True, "message": "Password changed successfully."})
+    return send_json(
+        handler,
+        {
+            "ok": True,
+            "message": "Password changed successfully.",
+            "role": row["user_type"],
+        },
+    )
 
 
 class ReusableTCPServer(socketserver.ThreadingTCPServer):
@@ -706,8 +802,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 password = str(data.get("password", ""))
                 if not name or not valid_email(email) or len(password) < 8:
                     return error(self, "Name, valid email and password of at least 8 characters are required.")
-                if c.execute("SELECT 1 FROM admins WHERE lower(email)=?", (email,)).fetchone() or c.execute("SELECT 1 FROM members WHERE lower(email)=?", (email,)).fetchone():
-                    return error(self, "Email already registered.")
+                if c.execute("SELECT 1 FROM admins WHERE lower(email)=?", (email,)).fetchone():
+                    return error(self, "This email is already registered as an admin. Log in instead.")
                 group_name = str(data.get("group_name") or f"{name}'s Njangi Group").strip()
                 amount = float(data.get("contribution_amount") or 25000)
                 frequency = str(data.get("frequency") or "Monthly")
@@ -732,9 +828,28 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if path == "/api/member/login" and method == "POST":
                 data = request_body(self)
                 email = str(data.get("email", "")).strip().lower()
-                row = c.execute("SELECT * FROM members WHERE lower(email)=? AND enrolled=1", (email,)).fetchone()
-                if not row or not check_password(str(data.get("password", "")), row["password_hash"]):
+                password = str(data.get("password", ""))
+                requested_group_id = data.get("group_id")
+
+                rows = c.execute("SELECT * FROM members WHERE lower(email)=? AND enrolled=1", (email,)).fetchall()
+                matching = [r for r in rows if check_password(password, r["password_hash"])]
+
+                if not matching:
                     return error(self, "Invalid email or password.", 401)
+
+                if len(matching) > 1 and requested_group_id is None:
+                    groups = []
+                    for r in matching:
+                        g = c.execute("SELECT id, name FROM groups WHERE id=?", (r["group_id"],)).fetchone()
+                        groups.append({"group_id": r["group_id"], "group_name": g["name"] if g else "Njangi Group"})
+                    return send_json(self, {"ok": True, "choose_group": True, "groups": groups})
+
+                if requested_group_id is not None:
+                    matching = [r for r in matching if r["group_id"] == int(requested_group_id)]
+                    if not matching:
+                        return error(self, "Invalid email or password.", 401)
+
+                row = matching[0]
                 token = create_session("member", row)
                 record_login(row["group_id"], "member", row["id"], row["name"], row["email"])
                 return send_json(self, {"ok": True, "token": token, "user": {"role": "member", "id": row["id"], "group_id": row["group_id"], "name": row["name"], "email": row["email"]}})
@@ -765,26 +880,34 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 email = str(data.get("email", "")).strip().lower()
                 if not name or not phone or not valid_email(email):
                     return error(self, "Name, phone and a valid email are required.")
-                if c.execute("SELECT 1 FROM admins WHERE lower(email)=?", (email,)).fetchone() or c.execute("SELECT 1 FROM members WHERE lower(email)=?", (email,)).fetchone():
-                    return error(self, "Email is already registered.")
+                # An admin of one group may be a member of a different group, so only block
+                # duplicates inside this group (the admin of THIS group, or an existing member here).
+                if c.execute("SELECT 1 FROM admins WHERE lower(email)=? AND group_id=?", (email, gid)).fetchone() or c.execute("SELECT 1 FROM members WHERE lower(email)=? AND group_id=?", (email, gid)).fetchone():
+                    return error(self, "This email is already used in this group.")
+                new_enrolled = 1 if data.get("enrolled", True) else 0
+                position, position_error = check_rotation_position(c, gid, data.get("rotation_position"), new_enrolled)
+                if position_error:
+                    return error(self, position_error)
                 group = c.execute("SELECT contribution_amount FROM groups WHERE id=?", (gid,)).fetchone()
                 expected = float(data.get("expected") or group["contribution_amount"])
                 password = str(data.get("password") or "").strip()
-                temporary = False
-                if len(password) < 8:
-                    password = secrets.token_urlsafe(9)
-                    temporary = True
+                needs_activation = len(password) < 8
+                password_hash = UNSET_PASSWORD_HASH if needs_activation else hash_password(password)
                 c.execute(
                     """INSERT INTO members(group_id,name,email,phone,expected,rotation_position,enrolled,password_hash)
                        VALUES(?,?,?,?,?,?,?,?)""",
-                    (gid, name, email, phone, expected, int(data.get("rotation_position") or 1), 1 if data.get("enrolled", True) else 0, hash_password(password)),
+                    (gid, name, email, phone, expected, position, new_enrolled, password_hash),
                 )
                 mid = c.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
                 c.commit()
                 member = c.execute("SELECT * FROM members WHERE id=?", (mid,)).fetchone()
                 response = {"ok": True, "member": clean_member(member)}
-                if temporary:
-                    response["temporary_password"] = password
+                if needs_activation:
+                    response["needs_activation"] = True
+                    response["message"] = (
+                        f"{name} was added. They can set their own password from the member login page "
+                        "using \"Forgot password?\"."
+                    )
                 return send_json(self, response)
 
             if path.startswith("/api/members/") and method in ("PUT", "DELETE") and role == "admin":
@@ -796,6 +919,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if not row:
                     return error(self, "Member not found.", 404)
                 if method == "DELETE":
+                    if member_has_records(c, mid):
+                        return error(
+                            self,
+                            f"{row['name']} has payment, loan or cycle records and cannot be deleted. "
+                            "Set them to not enrolled instead to keep the history.",
+                            409,
+                        )
+                    c.execute("DELETE FROM sessions WHERE role='member' AND user_id=?", (mid,))
+                    c.execute("DELETE FROM reset_tokens WHERE user_type='member' AND user_id=?", (mid,))
                     c.execute("DELETE FROM members WHERE id=?", (mid,))
                     c.commit()
                     return send_json(self, {"ok": True})
@@ -803,14 +935,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 new_email = str(data.get("email", row["email"] or "")).strip().lower()
                 if not valid_email(new_email):
                     return error(self, "A valid email is required for password recovery.")
-                duplicate = c.execute("SELECT 1 FROM admins WHERE lower(email)=?", (new_email,)).fetchone() or c.execute("SELECT 1 FROM members WHERE lower(email)=? AND id!=?", (new_email, mid)).fetchone()
+                duplicate = c.execute("SELECT 1 FROM admins WHERE lower(email)=? AND group_id=?", (new_email, gid)).fetchone() or c.execute("SELECT 1 FROM members WHERE lower(email)=? AND group_id=? AND id!=?", (new_email, gid, mid)).fetchone()
                 if duplicate:
-                    return error(self, "Email is already registered.")
+                    return error(self, "This email is already used in this group.")
+                new_enrolled = 1 if data.get("enrolled", row["enrolled"]) else 0
+                position, position_error = check_rotation_position(
+                    c, gid, data.get("rotation_position", row["rotation_position"]), new_enrolled, exclude_id=mid
+                )
+                if position_error:
+                    return error(self, position_error)
                 c.execute(
                     """UPDATE members SET name=?,email=?,phone=?,expected=?,rotation_position=?,enrolled=?
                        WHERE id=? AND group_id=?""",
-                    (str(data.get("name", row["name"])).strip(), new_email, str(data.get("phone", row["phone"])).strip(), float(data.get("expected", row["expected"])), int(data.get("rotation_position", row["rotation_position"])), 1 if data.get("enrolled", row["enrolled"]) else 0, mid, gid),
+                    (str(data.get("name", row["name"])).strip(), new_email, str(data.get("phone", row["phone"])).strip(), float(data.get("expected", row["expected"])), position, new_enrolled, mid, gid),
                 )
+                if not new_enrolled:
+                    c.execute("DELETE FROM sessions WHERE role='member' AND user_id=?", (mid,))
                 c.commit()
                 return send_json(self, {"ok": True, "member": clean_member(c.execute("SELECT * FROM members WHERE id=?", (mid,)).fetchone())})
 
@@ -829,12 +969,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if active_cycle(c, gid):
                     return error(self, "Close the active cycle before creating another one.")
                 number = int(data.get("number") or 1)
-                target = float(data.get("target") or 0)
+                # Target is derived from members' own expected amounts, not typed in
+                # separately, so it can never disagree with what members actually owe.
+                target = sum(
+                    float(m["expected"] or 0)
+                    for m in c.execute("SELECT expected FROM members WHERE group_id=? AND enrolled=1", (gid,)).fetchall()
+                )
                 start_date = str(data.get("start_date") or today())
                 end_date = str(data.get("end_date") or start_date)
                 recipient = data.get("recipient_id") or None
-                if target <= 0 or start_date > end_date:
-                    return error(self, "Enter a valid target and date range.")
+                if target <= 0:
+                    return error(self, "No enrolled members have an expected contribution set yet.")
+                if start_date > end_date:
+                    return error(self, "Enter a valid date range.")
                 if c.execute("SELECT 1 FROM cycles WHERE group_id=? AND number=?", (gid, number)).fetchone():
                     return error(self, "That cycle number already exists in this group.")
                 if recipient is not None:
