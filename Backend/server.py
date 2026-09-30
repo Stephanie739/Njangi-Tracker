@@ -623,6 +623,48 @@ def add_reliability(data, c, member_id, group_id):
     return data
 
 
+def next_rotation_position(c, group_id):
+    row = c.execute(
+        "SELECT COALESCE(MAX(rotation_position),0)+1 AS n FROM members WHERE group_id=?", (group_id,)
+    ).fetchone()
+    return row["n"]
+
+
+def check_rotation_position(c, group_id, raw, enrolled, exclude_id=None):
+    """Validate a rotation position and return (position, error_message).
+
+    A blank value means "put this member at the end of the rotation". Enrolled members
+    must each have a different position inside their group."""
+    if raw is None or str(raw).strip() == "":
+        return next_rotation_position(c, group_id), None
+    try:
+        position = int(raw)
+    except (TypeError, ValueError):
+        return None, "Rotation position must be a whole number."
+    if position < 1:
+        return None, "Rotation position must be 1 or higher."
+    if enrolled:
+        taken = c.execute(
+            "SELECT name FROM members WHERE group_id=? AND enrolled=1 AND rotation_position=? AND id IS NOT ?",
+            (group_id, position, exclude_id),
+        ).fetchone()
+        if taken:
+            return None, f"Rotation position {position} is already taken by {taken['name']}."
+    return position, None
+
+
+def member_has_records(c, member_id):
+    """True when deleting this member would erase payment, loan or cycle history."""
+    checks = (
+        "SELECT 1 FROM contributions WHERE member_id=?",
+        "SELECT 1 FROM loans WHERE member_id=?",
+        "SELECT 1 FROM cycles WHERE recipient_id=?",
+        "SELECT 1 FROM cycle_member_expected e JOIN cycles cy ON cy.id=e.cycle_id "
+        "WHERE e.member_id=? AND cy.status='CLOSED'",
+    )
+    return any(c.execute(q, (member_id,)).fetchone() for q in checks)
+
+
 def dashboard(c, group_id):
     cycle = active_cycle(c, group_id)
     members = c.execute(
@@ -799,112 +841,36 @@ def send_reset_email(email, code):
     return send_email(to_email, "Njangi Tracker - Password Reset PIN", body, allow_sender_fallback=True)
 
 
-def notify(email, subject, body):
-    """Best-effort notification (background thread). Falls back to NJANGI_SMTP_FROM."""
-    to_email = str(email or "").strip().lower()
-    if not smtp_configured():
-        return False
+def account_by_email(c, email, role_hint=None):
+    """Look up an account by email.
 
-    def _send():
-        ok, mail_error = send_email(to_email, subject, body, allow_sender_fallback=True)
-        if not ok:
-            print(f"[SMTP ERROR] notify failed preferred TO {to_email}: {mail_error}")
-
-    threading.Thread(target=_send, daemon=True).start()
-    return True
-
-
-def throttle_key(role, identifier):
-    """Stable, privacy-preserving key for tracking failed logins of one account."""
-    return hashlib.sha256(f"{role}:{identifier.strip().lower()}".encode()).hexdigest()
-
-
-def login_lock_remaining(c, key):
-    row = c.execute("SELECT locked_until FROM login_throttle WHERE account_key=?", (key,)).fetchone()
-    if row and row["locked_until"] > time.time():
-        return int(row["locked_until"] - time.time())
-    return 0
-
-
-def lock_message(seconds):
-    mins = max(1, (int(seconds) + 59) // 60)
-    return f"Too many failed login attempts. Try again in {mins} minute(s)."
-
-
-def record_failed_login(c, key):
-    now = time.time()
-    c.execute(
-        """INSERT INTO login_throttle(account_key,attempts,locked_until,updated_at) VALUES(?,1,0,?)
-           ON CONFLICT(account_key) DO UPDATE SET attempts=attempts+1, updated_at=?""",
-        (key, now, now),
-    )
-    row = c.execute("SELECT attempts FROM login_throttle WHERE account_key=?", (key,)).fetchone()
-    if row and row["attempts"] >= LOGIN_MAX_ATTEMPTS:
-        c.execute(
-            "UPDATE login_throttle SET locked_until=?, attempts=0 WHERE account_key=?",
-            (now + LOGIN_LOCK_SECONDS, key),
-        )
-    c.commit()
-
-
-def clear_login_throttle(c, key):
-    c.execute("DELETE FROM login_throttle WHERE account_key=?", (key,))
-    c.commit()
-
-
-def account_for_password_reset(c, email, account_type, group_name="", member_code=""):
-    """Resolve exactly one resettable account from the database.
-
-    Admins  → looked up by email (globally unique).
-    Members → looked up by Member ID (MBR-000123). The email stored on that
-              member row is what the recovery PIN is sent to.
+    The same email can legitimately belong to BOTH an admin account (in one
+    group) and a member account (in a different group) — see the earlier
+    fix allowing a person to be an admin of their own group while also
+    being a member of someone else's. When that happens, role_hint (which
+    login/forgot-password page the request came from) decides which
+    account this particular reset is for, instead of always preferring
+    whichever table happens to be checked first.
     """
-    email = (email or "").strip().lower()
-    account_type = (account_type or "").strip().lower()
+    admin_row = c.execute(
+        "SELECT id,name,email,group_id FROM admins WHERE lower(email)=?", (email,)
+    ).fetchone()
+    member_row = c.execute(
+        "SELECT id,name,email,group_id FROM members WHERE lower(email)=? AND enrolled=1", (email,)
+    ).fetchone()
 
-    if account_type == "admin":
-        if not email:
-            return account_type, None
-        rows = c.execute(
-            "SELECT id, name, email, group_id FROM admins WHERE lower(email)=?",
-            (email,),
-        ).fetchall()
-    elif account_type == "member":
-        code = normalize_member_code(member_code)
-        rows = []
-        # 1) Preferred: stable Member ID
-        if re.fullmatch(r"MBR-\d{6}", code):
-            rows = c.execute(
-                "SELECT id, name, email, group_id, member_code FROM members "
-                "WHERE member_code=? AND enrolled=1",
-                (code,),
-            ).fetchall()
-        # 2) Fallback: email only (if form omitted / mistyped Member ID)
-        if not rows and email:
-            rows = c.execute(
-                "SELECT id, name, email, group_id, member_code FROM members "
-                "WHERE lower(email)=? AND enrolled=1",
-                (email,),
-            ).fetchall()
-        # 3) Optional soft-check: if form email was given and differs from DB,
-        #    still accept the Member-ID match (DB email is the delivery target).
-        if email and rows and re.fullmatch(r"MBR-\d{6}", code):
-            db_emails = {str(r["email"] or "").strip().lower() for r in rows}
-            if email not in db_emails:
-                print(
-                    f"[RESET] Form email {email!r} differs from DB email(s) {db_emails}; "
-                    "using Member ID match and DB email for delivery."
-                )
-    else:
-        return None, None
+    if role_hint == "member" and member_row:
+        return "member", member_row
+    if role_hint == "admin" and admin_row:
+        return "admin", admin_row
 
-    if len(rows) != 1:
-        print(
-            f"[RESET] Account lookup failed type={account_type!r} "
-            f"member_code={member_code!r} email={email!r} matches={len(rows)}"
-        )
-        return account_type, None
-    return account_type, rows[0]
+    # No hint, or the hinted role doesn't exist for this email: fall back
+    # to whichever account actually exists (admin checked first, as before).
+    if admin_row:
+        return "admin", admin_row
+    if member_row:
+        return "member", member_row
+    return None, None
 
 
 def password_reset_forgot(handler, c):
@@ -1728,8 +1694,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 c.execute(
                     """UPDATE members SET name=?,email=?,phone=?,expected=?,rotation_position=?,enrolled=?
                        WHERE id=? AND group_id=?""",
-                    (str(data.get("name", row["name"])).strip(), new_email, str(data.get("phone", row["phone"])).strip(), float(data.get("expected", row["expected"])), int(data.get("rotation_position", row["rotation_position"])), 1 if data.get("enrolled", row["enrolled"]) else 0, mid, gid),
+                    (str(data.get("name", row["name"])).strip(), new_email, str(data.get("phone", row["phone"])).strip(), float(data.get("expected", row["expected"])), position, new_enrolled, mid, gid),
                 )
+                if not new_enrolled:
+                    c.execute("DELETE FROM sessions WHERE role='member' AND user_id=?", (mid,))
                 c.commit()
                 return send_json(self, {"ok": True, "member": clean_member(c.execute("SELECT * FROM members WHERE id=?", (mid,)).fetchone())})
 
@@ -1803,12 +1771,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if active_cycle(c, gid):
                     return error(self, "Close the active cycle before creating another one.")
                 number = int(data.get("number") or 1)
-                target = float(data.get("target") or 0)
+                # Target is derived from members' own expected amounts, not typed in
+                # separately, so it can never disagree with what members actually owe.
+                target = sum(
+                    float(m["expected"] or 0)
+                    for m in c.execute("SELECT expected FROM members WHERE group_id=? AND enrolled=1", (gid,)).fetchall()
+                )
                 start_date = str(data.get("start_date") or today())
                 end_date = str(data.get("end_date") or start_date)
                 recipient = data.get("recipient_id") or None
-                if target <= 0 or start_date > end_date:
-                    return error(self, "Enter a valid target and date range.")
+                if target <= 0:
+                    return error(self, "No enrolled members have an expected contribution set yet.")
+                if start_date > end_date:
+                    return error(self, "Enter a valid date range.")
                 if c.execute("SELECT 1 FROM cycles WHERE group_id=? AND number=?", (gid, number)).fetchone():
                     return error(self, "That cycle number already exists in this group.")
                 if recipient is not None:

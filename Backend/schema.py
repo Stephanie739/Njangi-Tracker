@@ -15,6 +15,7 @@ from pathlib import Path
 DB_PATH = str(Path(__file__).resolve().parent.parent / "njangi.db")
 
 
+# Open a connection to the SQLite database.
 def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
     """Return a connection with foreign keys enabled."""
     conn = sqlite3.connect(db_path, timeout=10)
@@ -24,6 +25,7 @@ def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
     return conn
 
 
+# Create all database tables.
 def create_schema(conn: sqlite3.Connection) -> None:
     """
     Create all tables if they do not already exist.

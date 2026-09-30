@@ -108,23 +108,61 @@ This separation means `models.py`'s logic has been fully unit-tested on its own,
 ## Project Structure
 
 ```
-njangi-tracker/
-├── models.py            # Member, Contribution, Cycle, NjangiGroup, PaymentStatus
-├── database.py          # Table creation + INSERT/SELECT/UPDATE for all 4 tables
-├── service.py           # Connects models.py logic with database.py storage
-├── app.py               # Flask routes (Create Group, Add Member, Log Payment, Dashboard...)
-├── njangi.db            # SQLite database file (created automatically, not committed)
-├── templates/
+Backend
+  ├── models.py            # Member, Contribution, Cycle, NjangiGroup, PaymentStatus
+  ├── database.py          # Table creation + INSERT/SELECT/UPDATE for all 4 tables
+  ├── schema.py
+  ├── app.py               # Flask routes (Create Group, Add Member, Log Payment, Dashboard...)
+  ├── main.py
+  ├── loan.py
+  ├──persistance.py
+  ├──cycleClosing.py
+  ├──reliability_collateral.py
+  ├──rotation_bidding.py
+  ├──test_cycle_history.py
+  ├──test_payment.py
+├── Frontend/
 │   ├── create_group.html
 │   ├── add_member.html
 │   ├── log_payment.html
 │   ├── dashboard.html
 │   └── cycle_history.html
-├── static/
+    └── contributions.html
+    └── cycles.html
+    └── dashboard.html
+    └── history.html
+    └── index.html
+    └── loans.html
+    └── login.html
+    └── members.html
+    └── member-login.html
+    └── member-dashboard.html
+    └── 
+├── CSS
 │   └── style.css
-├── tests/
-│   └── test_models.py   # unittest suite
-├── docs/
+│   └── auth.css
+    └── contribution.css
+    └── cycle.css
+    └── dashboard.css
+    └── history.css
+    └── legal.css
+    └── loan.css
+    └── member-auth.css
+    └── member-dashboard.css
+    └── member.css
+
+├── JS
+│   └── style.css
+│   └── auth.js
+└── └── contribution.js
+    └── cycle.js
+    └── dashboard.js
+    └── history.js
+    └── loans.js
+    └── member-auth.js
+    └── member-dashboard.js
+    └── member.js
+├── Docs/
 │   ├── use_case_diagram.png
 │   ├── class_diagram.png
 │   └── sequence_diagrams/
