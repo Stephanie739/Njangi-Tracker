@@ -1,52 +1,39 @@
 
 (async()=>{
 
-  // Make sure only an admin can access this page
+  // Check admin access
   await requireRole('admin');
 
-  // Set the logout button to call the logout function
+  // Logout button
   logoutButton.onclick=logout;
 
-  // Store loans and members
+  // Store data
   let rows=[], members=[];
 
-
-  // Load loans and members from the server
+  // Load data
   async function load(){
-
-    // Get all loans
     rows=(await api('/loans')).loans;
-
-    // Get all members
     members=(await api('/members')).members;
 
-    // Add enrolled members to the loan member dropdown
+    // Fill member dropdown
     loanMember.innerHTML=members
       .filter(m=>m.enrolled)
       .map(m=>`<option value="${m.id}">${esc(m.name)}</option>`)
       .join('');
 
-    // Display the loans
     render();
   }
 
-
-  // Display loans and update the page statistics
+  // Render page
   function render(){
-
-    // Get the selected loan status filter
     const filter=statusFilter.value;
 
-    // Show all loans or only loans matching the filter
     const visible=rows.filter(
       x=>filter==='all'||x.status.toLowerCase()===filter
     );
 
-
-    // Create a table row for each visible loan
+    // Build loan table
     loanTableBody.innerHTML=visible.map(x=>{
-
-      // Get the member's reliability information
       const r=x.reliability||{
         score:0,
         completed_cycles:0,
@@ -55,7 +42,6 @@
         missed:0
       };
 
-      // Calculate the remaining loan balance
       const balance=Number(
         x.balance ??
         Math.max(
@@ -64,8 +50,6 @@
         )
       );
 
-
-      // Decide which buttons should be displayed
       const action=x.status==='PENDING'
         ? `<button onclick="loanAction(${x.id},'approve')">Approve</button>
            <button onclick="loanAction(${x.id},'reject')">Reject</button>`
@@ -75,8 +59,6 @@
           : ''
         );
 
-
-      // Create the HTML row for the loan
       return `<tr>
         <td>${esc(x.member_name)}</td>
         <td>${money(x.amount)}</td>
@@ -87,39 +69,28 @@
         <td>${x.status}</td>
         <td>${action}</td>
       </tr>`;
-
     }).join('');
 
-
-    // Hide the empty message when loans exist
+    // Update loan statistics
     emptyState.style.display=visible.length?'none':'block';
 
-
-    // Count pending loans
     pendingCount.textContent=
       rows.filter(x=>x.status==='PENDING').length;
 
-
-    // Count approved or active loans
     borrowerCount.textContent=
       rows.filter(x=>['APPROVED','ACTIVE'].includes(x.status)).length;
 
-
-    // Calculate the total balance of active loans
     activeBalance.textContent=money(
       rows
         .filter(x=>['APPROVED','ACTIVE'].includes(x.status))
         .reduce((sum,x)=>sum+Number(x.balance||0),0)
     );
 
-
-    // Get members who have completed at least one cycle
+    // Calculate average reliability
     const scored=members
       .map(m=>m.reliability)
       .filter(r=>r&&r.completed_cycles>0);
 
-
-    // Calculate the average reliability score
     const avg=scored.length
       ? Math.round(
           scored.reduce((sum,r)=>sum+Number(r.score),0)/scored.length
@@ -128,11 +99,8 @@
 
     averageReliability.textContent=avg+'%';
 
-
-    // Display reliability information for each member
+    // Display reliability cards
     reliabilityGrid.innerHTML=members.map(m=>{
-
-      // Get reliability data or use default values
       const r=m.reliability||{
         score:0,
         completed_cycles:0,
@@ -141,8 +109,6 @@
         missed:0
       };
 
-
-      // Create a reliability card
       return `<div class="reliability-card">
         <strong>${esc(m.name)}</strong>
         <span>${r.score}%</span>
@@ -153,51 +119,33 @@
           ${r.missed} missed
         </small>
       </div>`;
-
     }).join('');
   }
 
-
-  // Approve or reject a loan
+  // Approve or reject loan
   window.loanAction=async(id,action)=>{
-
     try{
-
-      // Send the selected action to the server
       const result=await api('/loans/'+id,{
         method:'PATCH',
         body:JSON.stringify({action})
       });
 
-      // Show the server message
       alert(result.message||'Loan updated');
-
-      // Reload the loan list
       await load();
-
     }catch(x){
-
-      // Show an error if the request fails
       alert(x.message);
     }
   };
 
-
-  // Record a loan repayment
+  // Record repayment
   window.repay=async(id,balance)=>{
-
-    // Ask the admin how much the member wants to repay
     const amount=prompt(
       `Enter repayment amount (maximum ${balance} FCFA)`
     );
 
-    // Stop if no amount was entered
     if(!amount)return;
 
-
     try{
-
-      // Send the repayment amount to the server
       await api('/loans/'+id,{
         method:'PATCH',
         body:JSON.stringify({
@@ -206,26 +154,17 @@
         })
       });
 
-      // Reload the loan information
       await load();
-
     }catch(x){
-
-      // Show an error if the repayment fails
       alert(x.message);
     }
   };
 
-
-  // Handle the loan request form
+  // Handle loan form
   loanForm.onsubmit=async e=>{
-
-    // Stop the browser from refreshing the page
     e.preventDefault();
 
     try{
-
-      // Send the new loan request to the server
       await api('/loans',{
         method:'POST',
         body:JSON.stringify({
@@ -235,31 +174,19 @@
         })
       });
 
-      // Clear the form
       e.target.reset();
-
-      // Reload the loan list
       await load();
 
-      // Tell the admin that the request was submitted
       alert('Loan request submitted. It is now pending approval.');
-
     }catch(x){
-
-      // Show an error if the request fails
       alert(x.message);
     }
   };
 
-
-  // Reload the loans whenever the status filter changes
+  // Update filter
   statusFilter.onchange=render;
 
-
-  // Load the page data when the script starts
-  // Show an error if loading fails
+  // Start page
   load().catch(e=>alert(e.message));
 
-
 })().catch(e=>alert(e.message));
-
