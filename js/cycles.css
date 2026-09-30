@@ -1,0 +1,112 @@
+.progress-track {
+    height: 12px;
+    background: #edf1ef;
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 25px 0 10px
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0;
+    background: #176b4d;
+    border-radius: 999px;
+    transition: width .3s
+}
+
+.progress-row {
+    display: flex;
+    justify-content: space-between;
+    color: #6c7872;
+    font-size: 12px
+}
+
+.progress-row strong {
+    color: #17221d
+}
+
+.cycle-info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 25px
+}
+
+.cycle-info-grid div {
+    padding: 15px;
+    border: 1px solid #e7ece9;
+    border-radius: 10px
+}
+
+.cycle-info-grid span {
+    display: block;
+    color: #6c7872;
+    font-size: 11px
+}
+
+.cycle-info-grid strong {
+    display: block;
+    margin-top: 5px;
+    font-size: 13px
+}
+
+.small-button {
+    padding: 10px 13px;
+    font-size: 12px
+}
+
+.status.closed {
+    background: #eef1f3;
+    color: #5d6864
+}
+
+.status.active {
+    background: #e8f5ef;
+    color: #176b4d
+}
+
+.simple-form {
+    display: grid;
+    gap: 14px;
+    margin-top: 20px
+}
+
+.simple-form label {
+    font-size: 12px;
+    font-weight: 700
+}
+
+.simple-form input,
+.simple-form select {
+    display: block;
+    width: 100%;
+    margin-top: 7px;
+    padding: 12px;
+    border: 1px solid #e1e8e3;
+    border-radius: 9px;
+    background: #fff;
+    outline: none
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 5px
+}
+
+@media(max-width:800px) {
+    .cycle-info-grid {
+        grid-template-columns: 1fr 1fr
+    }
+
+    .small-button {
+        width: auto
+    }
+}
+
+@media(max-width:520px) {
+    .cycle-info-grid {
+        grid-template-columns: 1fr
+    }
+}
