@@ -99,32 +99,10 @@ LOAN_STATUS_REJECTED = "Rejected"
 # Connection Helper
 # =============================================================================
 
-def get_connection(db_path: Union[str, Path] = DB_PATH) -> sqlite3.Connection:
-    """
-    Open a SQLite connection with foreign-key enforcement enabled.
-
-    Parameters
-    ----------
-    db_path : str or Path, optional
-        Filesystem path to the SQLite database file.
-        Defaults to the module-level DB_PATH constant.
-
-    Returns
-    -------
-    sqlite3.Connection
-        An open connection with row_factory left at the default
-        (callers may set it to sqlite3.Row if they prefer).
-
-    Notes
-    -----
-    - PRAGMA foreign_keys = ON is executed immediately so that all
-      subsequent statements on this connection respect constraints.
-    - The connection is *not* closed by this function; the caller is
-      responsible for closing it (preferably via a context manager).
-    """
-    path_str = str(db_path)
-    logger.debug("Opening SQLite connection to %s", path_str)
-    conn = sqlite3.connect(path_str)
+def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
+    """Return a connection with foreign keys enabled."""
+    conn = sqlite3.connect(db_path, timeout=10)
+    conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     # Optional performance pragmas that are safe for a small multi-user app
     conn.execute("PRAGMA journal_mode = WAL")
@@ -137,6 +115,7 @@ def get_connection(db_path: Union[str, Path] = DB_PATH) -> sqlite3.Connection:
 # Schema Creation
 # =============================================================================
 
+# Create all database tables.
 def create_schema(conn: sqlite3.Connection) -> None:
     """
     Creates all tables if they don't already exist. Safe to call every

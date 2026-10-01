@@ -523,6 +523,48 @@ def add_reliability(data, c, member_id, group_id):
     return data
 
 
+def next_rotation_position(c, group_id):
+    row = c.execute(
+        "SELECT COALESCE(MAX(rotation_position),0)+1 AS n FROM members WHERE group_id=?", (group_id,)
+    ).fetchone()
+    return row["n"]
+
+
+def check_rotation_position(c, group_id, raw, enrolled, exclude_id=None):
+    """Validate a rotation position and return (position, error_message).
+
+    A blank value means "put this member at the end of the rotation". Enrolled members
+    must each have a different position inside their group."""
+    if raw is None or str(raw).strip() == "":
+        return next_rotation_position(c, group_id), None
+    try:
+        position = int(raw)
+    except (TypeError, ValueError):
+        return None, "Rotation position must be a whole number."
+    if position < 1:
+        return None, "Rotation position must be 1 or higher."
+    if enrolled:
+        taken = c.execute(
+            "SELECT name FROM members WHERE group_id=? AND enrolled=1 AND rotation_position=? AND id IS NOT ?",
+            (group_id, position, exclude_id),
+        ).fetchone()
+        if taken:
+            return None, f"Rotation position {position} is already taken by {taken['name']}."
+    return position, None
+
+
+def member_has_records(c, member_id):
+    """True when deleting this member would erase payment, loan or cycle history."""
+    checks = (
+        "SELECT 1 FROM contributions WHERE member_id=?",
+        "SELECT 1 FROM loans WHERE member_id=?",
+        "SELECT 1 FROM cycles WHERE recipient_id=?",
+        "SELECT 1 FROM cycle_member_expected e JOIN cycles cy ON cy.id=e.cycle_id "
+        "WHERE e.member_id=? AND cy.status='CLOSED'",
+    )
+    return any(c.execute(q, (member_id,)).fetchone() for q in checks)
+
+
 def dashboard(c, group_id):
     cycle = active_cycle(c, group_id)
     members = c.execute(
@@ -672,6 +714,32 @@ def clear_login_throttle(c, key):
     c.commit()
 
 
+def account_by_email(c, email, role_hint=None):
+    """Look up an account by email.
+
+    The same email can legitimately belong to BOTH an admin account (in one
+    group) and a member account (in a different group). When that happens,
+    role_hint decides which account a particular reset or login is for.
+    """
+    admin_row = c.execute(
+        "SELECT id,name,email,group_id FROM admins WHERE lower(email)=?", (email,)
+    ).fetchone()
+    member_row = c.execute(
+        "SELECT id,name,email,group_id FROM members WHERE lower(email)=? AND enrolled=1", (email,)
+    ).fetchone()
+
+    if role_hint == "member" and member_row:
+        return "member", member_row
+    if role_hint == "admin" and admin_row:
+        return "admin", admin_row
+
+    if admin_row:
+        return "admin", admin_row
+    if member_row:
+        return "member", member_row
+    return None, None
+
+
 def account_for_password_reset(c, email, account_type, group_name="", member_code=""):
     """Resolve exactly one resettable account.
 
@@ -681,6 +749,7 @@ def account_for_password_reset(c, email, account_type, group_name="", member_cod
     """
     email = email.strip().lower()
     account_type = account_type.strip().lower()
+
     if account_type == "admin":
         rows = c.execute(
             "SELECT id,name,email,group_id FROM admins WHERE lower(email)=?",
@@ -694,9 +763,19 @@ def account_for_password_reset(c, email, account_type, group_name="", member_cod
         ).fetchall()
     else:
         return None, None
-    if len(rows) != 1:
-        return account_type, None
-    return account_type, rows[0]
+
+    if len(rows) == 1:
+        return account_type, rows[0]
+
+    # In the unique-email/role-hint edge case, fall back to the explicit
+    # account lookup helper that resolves the intended role when both tables
+    # contain the same email address.
+    if not rows:
+        resolved_type, resolved_row = account_by_email(c, email, role_hint=account_type)
+        if resolved_type == account_type and resolved_row is not None:
+            return resolved_type, resolved_row
+
+    return account_type, None
 
 
 
@@ -1066,8 +1145,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 c.execute(
                     """UPDATE members SET name=?,email=?,phone=?,expected=?,rotation_position=?,enrolled=?
                        WHERE id=? AND group_id=?""",
-                    (str(data.get("name", row["name"])).strip(), new_email, str(data.get("phone", row["phone"])).strip(), float(data.get("expected", row["expected"])), int(data.get("rotation_position", row["rotation_position"])), 1 if data.get("enrolled", row["enrolled"]) else 0, mid, gid),
+                    (str(data.get("name", row["name"])).strip(), new_email, str(data.get("phone", row["phone"])).strip(), float(data.get("expected", row["expected"])), position, new_enrolled, mid, gid),
                 )
+                if not new_enrolled:
+                    c.execute("DELETE FROM sessions WHERE role='member' AND user_id=?", (mid,))
                 c.commit()
                 return send_json(self, {"ok": True, "member": clean_member(c.execute("SELECT * FROM members WHERE id=?", (mid,)).fetchone())})
 
@@ -1141,12 +1222,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if active_cycle(c, gid):
                     return error(self, "Close the active cycle before creating another one.")
                 number = int(data.get("number") or 1)
-                target = float(data.get("target") or 0)
+                # Target is derived from members' own expected amounts, not typed in
+                # separately, so it can never disagree with what members actually owe.
+                target = sum(
+                    float(m["expected"] or 0)
+                    for m in c.execute("SELECT expected FROM members WHERE group_id=? AND enrolled=1", (gid,)).fetchall()
+                )
                 start_date = str(data.get("start_date") or today())
                 end_date = str(data.get("end_date") or start_date)
                 recipient = data.get("recipient_id") or None
-                if target <= 0 or start_date > end_date:
-                    return error(self, "Enter a valid target and date range.")
+                if target <= 0:
+                    return error(self, "No enrolled members have an expected contribution set yet.")
+                if start_date > end_date:
+                    return error(self, "Enter a valid date range.")
                 if c.execute("SELECT 1 FROM cycles WHERE group_id=? AND number=?", (gid, number)).fetchone():
                     return error(self, "That cycle number already exists in this group.")
                 if recipient is not None:

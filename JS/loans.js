@@ -59,7 +59,12 @@
         return `<div class="reliability-card">
         <strong>${esc(m.name)}</strong>
         <span>${r.score}%</span>
-        <small>${r.completed_cycles} cycle(s): ${r.on_time} on-time, ${r.late} late, ${r.missed} missed</small>
+        <small>
+          ${r.completed_cycles} cycle(s):
+          ${r.on_time} on-time,
+          ${r.late} late,
+          ${r.missed} missed
+        </small>
       </div>`;
       })
       .join('');
