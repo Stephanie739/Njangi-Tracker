@@ -1,65 +1,37 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Set the page character encoding -->
     <meta charset="UTF-8">
-
-    <!-- Make the page responsive -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- Describe the page -->
     <meta name="description" content="Create your Njangi Tracker account.">
-
-    <!-- Set the browser tab title -->
     <title>Create Account | Njangi Tracker</title>
-
-    <!-- Connect to Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-    <!-- Load the Inter font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- Load page styles -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/auth.css">
 </head>
-
 <body class="auth-page">
-
-    <!-- HEADER: Contains the logo and home link -->
+    <!-- HEADER: logo and link back to the landing page -->
     <header class="header">
         <div class="container nav">
-
-            <!-- Logo links to the home page -->
             <a href="index.html" class="logo">
                 <span class="logo-mark">N</span>
                 <span>Njangi<span class="logo-accent">Tracker</span></span>
             </a>
-
-            <!-- Return to the landing page -->
             <a href="index.html" class="back-link">← Back to Home</a>
         </div>
     </header>
 
-    <!-- MAIN: Contains the registration introduction and form -->
+    <!-- MAIN: registration area containing an introduction and the form -->
     <main class="auth-main register-main">
         <div class="auth-container">
-
-            <!-- LEFT SIDE: Explains the registration process -->
+            <!-- Left side: explains the account creation process -->
             <div class="auth-intro">
-
-                <!-- Welcome message -->
                 <div class="badge"><span class="badge-dot"></span> Get started</div>
-
-                <!-- Main registration heading -->
                 <h1>Create your <span>Njangi</span> account</h1>
-
-                <!-- Short description -->
                 <p>Set up your account and get ready to manage your group in one organized place.</p>
 
-                <!-- Registration steps -->
                 <div class="auth-benefits">
                     <div><span>01</span> Create your account</div>
                     <div><span>02</span> Set up your group</div>
@@ -67,115 +39,78 @@
                 </div>
             </div>
 
-            <!-- RIGHT SIDE: Contains the registration form -->
+            <!-- Right side: the registration form -->
             <div class="auth-card">
-
-                <!-- Registration form heading -->
                 <div class="auth-card-heading">
                     <h2>Create account</h2>
                     <p>Fill in your information below.</p>
                 </div>
 
-                <!-- REGISTRATION FORM: JavaScript handles validation -->
+                <!-- JavaScript handles validation so we can display our own messages. -->
                 <form id="registerForm" novalidate>
-
-                    <!-- FULL NAME: Collects the user's name -->
-                    <!-- EMAIL ADDRESS: Collects the user's email -->
-                    <!-- PHONE NUMBER: Collects the user's phone number -->
-                    <!-- PASSWORD: Includes password visibility and strength checking -->
-                    <!-- CONFIRM PASSWORD: Checks that both passwords match -->
-
+                    <!-- FULL NAME -->
+                    <!-- EMAIL ADDRESS -->
+                    <!-- PHONE NUMBER -->
+                    <!-- PASSWORD + STRENGTH INDICATOR -->
+                    <!-- CONFIRM PASSWORD: must match the password above -->
                     <div class="form-group">
                         <label for="registerName">Full name</label>
-
-                        <!-- User enters their full name -->
                         <input type="text" id="registerName" name="name" placeholder="Your full name" autocomplete="name" required>
-
-                        <!-- Displays name validation errors -->
                         <small class="error-message" id="registerNameError"></small>
                     </div>
 
                     <div class="form-group">
                         <label for="registerEmail">Email address</label>
-
-                        <!-- User enters their email -->
                         <input type="email" id="registerEmail" name="email" placeholder="you@example.com" autocomplete="email" required>
-
-                        <!-- Displays email validation errors -->
                         <small class="error-message" id="registerEmailError"></small>
                     </div>
 
                     <div class="form-group">
                         <label for="registerPhone">Phone number</label>
-
-                        <!-- User enters their phone number -->
                         <input type="tel" id="registerPhone" name="phone" placeholder="6XX XXX XXX" autocomplete="tel">
-
                     </div>
 
                     <div class="form-group">
                         <label for="registerPassword">Password</label>
-
-                        <!-- Password input with show/hide button -->
                         <div class="password-wrap">
-                            <input type="password" id="registerPassword" name="password" placeholder="At least 8 characters" autocomplete="new-password" required>
-
-                            <!-- JavaScript controls password visibility -->
+                            <input type="password" id="registerPassword" name="password" placeholder="At least 6 characters" autocomplete="new-password" required>
                             <button type="button" class="password-toggle" data-target="registerPassword" aria-label="Show password">Show</button>
                         </div>
-
-                        <!-- Shows password strength -->
                         <div class="password-strength" id="passwordStrength">
                             <span></span><span></span><span></span><span></span>
                         </div>
-
-                        <!-- Displays password strength information -->
-                        <small class="strength-text" id="strengthText">Use at least 8 characters.</small>
-
-                        <!-- Displays password validation errors -->
+                        <small class="strength-text" id="strengthText">Use at least 6 characters.</small>
                         <small class="error-message" id="registerPasswordError"></small>
                     </div>
 
                     <div class="form-group">
                         <label for="registerConfirm">Confirm password</label>
-
-                        <!-- Password confirmation input -->
                         <div class="password-wrap">
                             <input type="password" id="registerConfirm" name="confirmPassword" placeholder="Repeat your password" autocomplete="new-password" required>
-
-                            <!-- JavaScript controls password visibility -->
                             <button type="button" class="password-toggle" data-target="registerConfirm" aria-label="Show password">Show</button>
                         </div>
-
-                        <!-- Displays confirmation errors -->
                         <small class="error-message" id="registerConfirmError"></small>
                     </div>
 
-                    <!-- TERMS: User must agree before registering -->
+                    <!-- AGREEMENT: user must check this before creating an account. -->
                     <label class="checkbox-row terms-row">
                         <input type="checkbox" id="agreeTerms" required>
                         <span>I agree to use Njangi Tracker responsibly.</span>
                     </label>
-
-                    <!-- Displays terms validation errors -->
                     <small class="error-message" id="termsError"></small>
 
-                    <!-- SUBMIT: Sends the form after JavaScript validation -->
+                    <!-- Submit button: JavaScript validates the form before sending it to the Python backend. -->
                     <button type="submit" class="btn btn-primary auth-submit">Create Account <span>→</span></button>
-
-                    <!-- Displays registration messages -->
                     <p class="form-message" id="registerMessage"></p>
                 </form>
 
-                <!-- Link to the login page -->
                 <p class="switch-auth">Already have an account? <a href="login.html">Login</a></p>
             </div>
         </div>
     </main>
 
-    <!-- JAVASCRIPT: Loads API and authentication functions -->
+    <!-- auth.js contains form validation and password visibility controls. -->
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
 </body>
 </html>
-
