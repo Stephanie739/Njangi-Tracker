@@ -3,20 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Njangi Tracker emergency loans">
-    <title>Emergency Loans | Njangi Tracker</title>
+    <meta name="description" content="Member dashboard - Njangi Tracker">
+    <title>My Dashboard | Njangi Tracker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/loans.css">
+    <link rel="stylesheet" href="css/member-dashboard.css">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
-    <!-- ==================================================
-         SIDEBAR: Main navigation for the tracker
-         ================================================== -->
     <aside class="sidebar" id="sidebar">
-        <a href="dashboard.html" class="logo">
+        <a href="member-dashboard.html" class="logo">
             <span class="logo-mark">N</span>
             <span>Njangi<span class="logo-accent">Tracker</span></span>
         </a>
@@ -28,203 +25,198 @@
         </div>
 
         <nav class="side-nav">
-            <a href="dashboard.html"><span>▦</span> Dashboard</a>
-            <a href="members.html"><span>MB</span> Members</a>
-            <a href="cycles.html"><span>↻</span> Cycles</a>
-            <a href="contributions.html"><span>₣</span> Contributions</a>
-            <a href="history.html"><span>◷</span> History</a>
-            <a href="loans.html" class="active"><span>LN</span> Emergency Loans</a>
+            <a href="member-dashboard.html" class="active"><span>▦</span> My Dashboard</a>
+            <a href="#loan-request"><span>LN</span> Request Loan</a>
         </nav>
 
         <div class="sidebar-bottom">
-            <button id="logoutButton" class="logout-button"><span>↪</span> Log out</button>
+            <button id="logoutBtn" class="logout-button"><span>↪</span> Log out</button>
         </div>
     </aside>
 
-    <!-- Dark overlay appears behind the sidebar on small screens. -->
     <div class="sidebar-overlay" id="overlay"></div>
 
     <div class="page">
-        <!-- ==================================================
-             TOP BAR: Mobile menu, search and user information
-             ================================================== -->
         <header class="topbar">
             <button class="mobile-menu" id="menuBtn" aria-label="Open menu">☰</button>
-
             <div class="topbar-search">
                 <span>⌕</span>
-                <input type="search" id="memberSearch" placeholder="Search members...">
+                <input type="search" placeholder="Search…" disabled title="Search is available for admins">
             </div>
-
             <div class="topbar-user">
-                <div class="notification">Alerts<span></span></div>
-                <div class="user-avatar" id="userAvatar">NG</div>
+                <div class="user-avatar" id="userAvatar">M</div>
                 <div class="user-info">
-                    <strong id="userName">Njangi Admin</strong>
-                    <small>Administrator</small>
+                    <strong id="userName">Member</strong>
+                    <small>Member</small>
                 </div>
             </div>
         </header>
 
         <main class="main-content">
-            <!-- Page heading -->
             <section class="page-heading">
                 <div>
-                    <span class="section-label">LOANS</span>
-                    <h1>Emergency Loans</h1>
-                    <p>Request, approve and track emergency pool loans.</p>
+                    <span class="section-label">MEMBER VIEW</span>
+                    <h1>Member dashboard</h1>
+                    <p>Your contributions, cycle progress, and loan requests.</p>
                 </div>
             </section>
 
-            <!-- ==================================================
-                 STATISTICS
-                 ================================================== -->
-            <section class="stats-grid">
-                <div class="stat-box">
-                    <div class="stat-box-top">
-                        <span class="dashboard-icon orange">LN</span>
-                        <span class="neutral">Open</span>
-                    </div>
-                    <small>Pending Requests</small>
-                    <h2 id="pendingCount">0</h2>
-                    <p>Awaiting approval</p>
-                </div>
-
-                <div class="stat-box">
-                    <div class="stat-box-top">
-                        <span class="dashboard-icon green">₣</span>
-                        <span class="trend">Active</span>
-                    </div>
-                    <small>Active Loan Balance</small>
-                    <h2 id="activeBalance">0 FCFA</h2>
-                    <p>Outstanding amounts</p>
-                </div>
-
-                <div class="stat-box">
-                    <div class="stat-box-top">
-                        <span class="dashboard-icon blue">MB</span>
-                        <span class="neutral">Borrowers</span>
-                    </div>
-                    <small>Members With Loans</small>
-                    <h2 id="borrowerCount">0</h2>
-                    <p>Currently borrowing</p>
-                </div>
-
-                <div class="stat-box">
-                    <div class="stat-box-top">
-                        <span class="dashboard-icon green">★</span>
-                        <span class="trend">Score</span>
-                    </div>
-                    <small>Average Reliability</small>
-                    <h2 id="averageReliability">0%</h2>
-                    <p>Payment reliability</p>
-                </div>
-            </section>
-
-            <!-- Loan request form -->
-            <section class="panel form-panel">
+            <!-- Active cycle -->
+            <section class="panel cycle-panel" id="active-cycle">
                 <div class="panel-heading">
                     <div>
-                        <span class="section-label">REQUEST</span>
-                        <h2>Emergency Pool Loan Request</h2>
+                        <span class="section-label">ACTIVE CYCLE</span>
+                        <h2>Current cycle</h2>
                     </div>
+                    <span class="status-pill">Active</span>
                 </div>
-                <p class="panel-desc">Submit a request for an emergency loan from the group pool.</p>
-                <form id="loanForm">
-                    <div class="form-grid">
-                        <div class="form-field">
-                            <label for="loanMember">Member</label>
-                            <select id="loanMember" required></select>
-                        </div>
-                        <div class="form-field">
-                            <label for="loanAmount">Requested Amount (FCFA)</label>
-                            <input type="number" id="loanAmount" min="1" placeholder="e.g. 50000" required>
-                        </div>
-                        <div class="form-field">
-                            <label for="loanReason">Reason</label>
-                            <input type="text" id="loanReason" placeholder="e.g. Emergency expense" required>
-                        </div>
-                    </div>
-                    <button class="primary-button" type="submit">+ Submit Loan Request</button>
-                </form>
-            </section>
 
-            <!-- Loan requests table -->
-            <section class="panel table-panel">
-                <div class="panel-heading">
+                <div class="cycle-amounts">
                     <div>
-                        <span class="section-label">REQUESTS</span>
-                        <h2>Loan Requests</h2>
+                        <small>Collected</small>
+                        <strong id="collectedAmount">Loading...</strong>
                     </div>
-                    <select id="statusFilter" class="small-select">
-                        <option value="all">All Statuses</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="completed">Completed</option>
-                    </select>
+                    <div>
+                        <small>Target</small>
+                        <strong id="cycleTargetAmount">Loading...</strong>
+                    </div>
                 </div>
-                <p class="panel-desc">Approve or reject pending requests and record repayments.</p>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Member</th>
-                                <th>Requested</th>
-                                <th>Reason</th>
-                                <th>Date</th>
-                                <th>Balance</th>
-                                <th>Reliability</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="loanTableBody"></tbody>
-                    </table>
-                    <div class="empty-state" id="emptyState">
-                        <div>LN</div>
-                        <h3>No loan requests</h3>
-                        <p>Loan requests will appear here.</p>
+
+                <div class="large-progress">
+                    <div class="large-progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <div class="progress-labels">
+                    <span id="remainingAmount">Loading current cycle...</span>
+                    <strong id="progressText">Loading...</strong>
+                </div>
+
+                <div class="cycle-details">
+                    <div><span>Started</span><strong id="cycleStartDate">—</strong></div>
+                    <div><span>Members paid</span><strong id="membersPaid">Loading...</strong></div>
+                </div>
+            </section>
+
+            <section class="dashboard-grid">
+                <!-- Payment status (this member) -->
+                <div class="panel" id="payment-status">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="section-label">YOUR STATUS</span>
+                            <h2>Payment Status</h2>
+                        </div>
+                    </div>
+                    <div class="member-status-card">
+                        <div class="member-avatar" id="statusAvatar">M</div>
+                        <div>
+                            <strong id="statusName">Member</strong>
+                            <small id="statusDetail">Contribution for this cycle</small>
+                        </div>
+                        <span class="payment-status" id="statusBadge">Pending</span>
+                    </div>
+                    <div class="status-amounts">
+                        <div>
+                            <small>Paid this cycle</small>
+                            <strong id="paidAmount">0 FCFA</strong>
+                        </div>
+                        <div>
+                            <small>Expected</small>
+                            <strong id="expectedAmount">Loading...</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent contributions (member's own + recent group activity simplified) -->
+                <div class="panel" id="recent-contributions">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="section-label">ACTIVITY</span>
+                            <h2>Recent Contributions</h2>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Member</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contributionTable"></tbody>
+                        </table>
+                        <div class="empty-state" id="contribEmpty" style="display:none">
+                            <p>No contributions recorded yet.</p>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Reliability scores -->
+            <!-- Payment reliability -->
             <section class="panel reliability-panel">
                 <div class="panel-heading">
                     <div>
                         <span class="section-label">RELIABILITY</span>
-                        <h2>Member Payment Reliability</h2>
+                        <h2>Your Payment Reliability</h2>
                     </div>
                 </div>
-                <p class="panel-desc">Based on on-time completed cycles. A loan can be approved only when the member meets the reliability rule.</p>
-                <div class="reliability-grid" id="reliabilityGrid"></div>
+                <p class="panel-desc">Your score is calculated from closed cycles using your contribution history.</p>
+                <div class="member-reliability-summary">
+                    <strong id="memberReliabilityScore">0%</strong>
+                    <span id="memberReliabilityDetails">No closed cycles yet.</span>
+                </div>
             </section>
+
+            <!-- Request loan -->
+            <section class="panel" id="loan-request">
+                <div class="panel-heading">
+                    <div>
+                        <span class="section-label">EMERGENCY LOANS</span>
+                        <h2>Request a Loan</h2>
+                    </div>
+                </div>
+                <p class="panel-desc">Your request is sent to the group admin. Approval is based on your on-time payment reliability score.</p>
+                <form id="memberLoanForm">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="loanAmount">Requested amount (FCFA)</label>
+                            <input type="number" id="loanAmount" min="1" placeholder="e.g. 50000" required>
+                        </div>
+                        <div class="form-field">
+                            <label for="loanReason">Reason</label>
+                            <input type="text" id="loanReason" placeholder="e.g. Medical emergency" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="primary-button">+ Submit loan request</button>
+                    <p class="form-message" id="loanMessage"></p>
+                </form>
+
+                <div class="my-loans-wrap">
+                    <h3 class="sub-heading">Your loan requests</h3>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Amount</th>
+                                    <th>Reason</th>
+                                    <th>Date</th>
+                                    <th>Balance</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="myLoansTable"></tbody>
+                        </table>
+                        <div class="empty-state" id="loansEmpty">
+                            <p>You have no loan requests yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
         </main>
     </div>
 
-    <!-- Repayment modal -->
-    <div class="modal" id="paymentModal" aria-hidden="true">
-        <div class="modal-card">
-            <button class="modal-close" id="closePaymentModal" aria-label="Close">×</button>
-            <span class="section-label">REPAYMENT</span>
-            <h2>Record Loan Payment</h2>
-            <p class="modal-description" id="paymentDescription">Enter the amount paid.</p>
-            <form id="paymentForm">
-                <input type="hidden" id="paymentLoanId">
-                <div class="form-field">
-                    <label for="paymentAmount">Payment Amount (FCFA)</label>
-                    <input type="number" id="paymentAmount" min="1" required>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="outline-button cancel-btn" id="cancelPayment">Cancel</button>
-                    <button type="submit" class="primary-button">Record Payment</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script src="js/api.js"></script>
-    <script src="js/loans.js"></script>
+    <script src="js/member-dashboard.js"></script>
 </body>
 </html>
