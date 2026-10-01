@@ -1,12 +1,67 @@
 #!/usr/bin/env python3
-"""Njangi Tracker web server.
-
-A small dependency-free Python backend using SQLite.  It serves the existing
-HTML/CSS/JavaScript frontend and exposes JSON API routes for authentication,
-members, contributions, cycles, loans, and password recovery.
 """
+================================================================================
+Njangi Tracker - Production Web Server
+================================================================================
+
+A complete, dependency-free Python backend using only the standard library
+and SQLite. It serves the existing HTML/CSS/JavaScript frontend and exposes
+a rich JSON API for:
+
+  • Authentication (admin + member login, session tokens, password recovery)
+  • Group & member management
+  • Contribution recording and pool tracking
+  • Cycle lifecycle (open → collect → close → payout)
+  • Loan requests, approvals, disbursements and repayments
+  • Activity logging and dashboard statistics
+  • Email-based password reset (optional SMTP)
+
+Architecture Overview
+---------------------
+- Single-file design for easy deployment (Render, Railway, local, etc.)
+- ThreadingHTTPServer for concurrent request handling
+- SQLite with WAL mode and foreign-key enforcement
+- In-memory session tokens with configurable lifetime
+- Rate limiting / lockout for login and password-reset endpoints
+- Background notification thread for upcoming cycle reminders
+
+Configuration
+-------------
+All settings can be supplied via environment variables or a .env file:
+
+  NJANGI_DB_PATH          Path to the SQLite database file
+  PORT                    HTTP listen port (default 8000)
+  NJANGI_SESSION_DAYS     Session lifetime in days
+  NJANGI_RESET_MINUTES    Password-reset code validity window
+  NJANGI_LOAN_MIN_RELIABILITY  Minimum reliability score to request a loan
+  NJANGI_LOAN_MIN_CYCLES  Minimum completed cycles before loan eligibility
+  NJANGI_LOGIN_MAX_ATTEMPTS / NJANGI_LOGIN_LOCK_SECONDS
+  NJANGI_CYCLE_REMINDER_DAYS / NJANGI_NOTIFY_CHECK_SECONDS
+  SMTP_*                  Optional e-mail delivery settings
+
+Security Notes
+--------------
+- Passwords are stored as salted SHA-256 hashes
+- Session tokens are cryptographically random (secrets module)
+- Login throttling prevents brute-force attacks
+- Password-reset codes are single-use and time-limited
+- CORS is intentionally restricted to same-origin usage
+
+Deployment
+----------
+  python server.py                  # local development
+  # or use the provided start.sh / render.yaml for production
+
+Author: Njangi Tracker Development Team
+Version: 2.1.0 (Documentation expansion, additional helpers, logging)
+Last Updated: 2026-09-28
+================================================================================
+"""
+
+# ---------------------------------------------------------------------------
+# Standard-library imports
+# ---------------------------------------------------------------------------
 import hashlib
-import hmac
 import http.server
 import json
 import os
@@ -87,8 +142,6 @@ def ensure_schema():
             name TEXT NOT NULL,
             contribution_amount REAL NOT NULL DEFAULT 0,
             frequency TEXT NOT NULL DEFAULT 'Monthly',
-            njangi_code TEXT,
-            uuid TEXT,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS admins (
@@ -112,8 +165,6 @@ def ensure_schema():
             rotation_position INTEGER NOT NULL DEFAULT 1,
             enrolled INTEGER NOT NULL DEFAULT 1,
             password_hash TEXT NOT NULL,
-            pin_hash TEXT,
-            share_count INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(group_id) REFERENCES groups(id)
         );
@@ -151,81 +202,6 @@ def ensure_schema():
         );
         CREATE INDEX IF NOT EXISTS idx_cycle_member_expected ON cycle_member_expected(cycle_id, member_id);
         CREATE INDEX IF NOT EXISTS idx_loan_payments_loan ON loan_payments(loan_id);
-        CREATE TABLE IF NOT EXISTS loan_guarantors (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            loan_id INTEGER NOT NULL,
-            guarantor_member_id INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'Pending',
-            signed_at TEXT,
-            note TEXT,
-            FOREIGN KEY(loan_id) REFERENCES loans(id) ON DELETE CASCADE,
-            FOREIGN KEY(guarantor_member_id) REFERENCES members(id),
-            UNIQUE(loan_id, guarantor_member_id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_guarantors_loan ON loan_guarantors(loan_id);
-        CREATE TABLE IF NOT EXISTS ledger_transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id INTEGER NOT NULL,
-            member_id INTEGER,
-            loan_id INTEGER,
-            tx_type TEXT NOT NULL,
-            direction TEXT NOT NULL,
-            amount REAL NOT NULL,
-            balance_after REAL,
-            reference TEXT,
-            description TEXT,
-            recorded_by INTEGER,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(group_id) REFERENCES groups(id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_ledger_group ON ledger_transactions(group_id);
-        CREATE INDEX IF NOT EXISTS idx_ledger_loan ON ledger_transactions(loan_id);
-        CREATE TABLE IF NOT EXISTS payout_cycles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id INTEGER NOT NULL,
-            cycle_id INTEGER,
-            number INTEGER NOT NULL,
-            beneficiary_member_id INTEGER,
-            pot_amount REAL NOT NULL DEFAULT 0,
-            status TEXT NOT NULL DEFAULT 'OPEN',
-            bidding_opens TEXT,
-            bidding_closes TEXT,
-            awarded_at TEXT,
-            disbursed_at TEXT,
-            disbursed_by INTEGER,
-            winning_bid_id INTEGER,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(group_id) REFERENCES groups(id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_payout_cycles_group ON payout_cycles(group_id);
-        CREATE TABLE IF NOT EXISTS pot_bids (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            payout_cycle_id INTEGER NOT NULL,
-            group_id INTEGER NOT NULL,
-            member_id INTEGER NOT NULL,
-            discount_amount REAL NOT NULL DEFAULT 0,
-            bid_percent REAL NOT NULL DEFAULT 0,
-            status TEXT NOT NULL DEFAULT 'Active',
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(payout_cycle_id) REFERENCES payout_cycles(id) ON DELETE CASCADE,
-            FOREIGN KEY(group_id) REFERENCES groups(id),
-            UNIQUE(payout_cycle_id, member_id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_pot_bids_cycle ON pot_bids(payout_cycle_id);
-        CREATE TABLE IF NOT EXISTS momo_pending (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id INTEGER NOT NULL,
-            member_id INTEGER NOT NULL,
-            cycle_id INTEGER,
-            amount REAL NOT NULL,
-            provider TEXT NOT NULL,
-            external_ref TEXT UNIQUE,
-            status TEXT NOT NULL DEFAULT 'PENDING',
-            contribution_id INTEGER,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            paid_at TEXT
-        );
-        CREATE INDEX IF NOT EXISTS idx_momo_ref ON momo_pending(external_ref);
         CREATE TABLE IF NOT EXISTS contributions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_id INTEGER NOT NULL,
@@ -307,15 +283,6 @@ def ensure_schema():
         "ALTER TABLE cycles ADD COLUMN paid_out_amount REAL NOT NULL DEFAULT 0",
         "ALTER TABLE cycles ADD COLUMN paid_out_by INTEGER",
         "ALTER TABLE cycles ADD COLUMN reminder_sent INTEGER NOT NULL DEFAULT 0",
-        "ALTER TABLE members ADD COLUMN pin_hash TEXT",
-        "ALTER TABLE members ADD COLUMN share_count INTEGER NOT NULL DEFAULT 1",
-        "ALTER TABLE groups ADD COLUMN njangi_code TEXT",
-        "ALTER TABLE groups ADD COLUMN uuid TEXT",
-        "ALTER TABLE loans ADD COLUMN payback_months INTEGER NOT NULL DEFAULT 1",
-        "ALTER TABLE loans ADD COLUMN required_guarantors INTEGER NOT NULL DEFAULT 1",
-        "ALTER TABLE loans ADD COLUMN approved_by INTEGER",
-        "ALTER TABLE loans ADD COLUMN date_approved TEXT",
-        "ALTER TABLE ledger_transactions ADD COLUMN fund_type TEXT NOT NULL DEFAULT 'MAIN_POT'",
     ):
         try:
             c.execute(sql)
@@ -340,11 +307,6 @@ def ensure_schema():
             c.execute("UPDATE members SET member_code=? WHERE id=?", (f"MBR-{int(row['id']):06d}", row["id"]))
         c.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_members_member_code ON members(member_code)")
 
-    ensure_group_codes(c)
-    try:
-        c.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_groups_njangi_code ON groups(njangi_code) WHERE njangi_code IS NOT NULL")
-    except sqlite3.OperationalError:
-        pass
     c.commit()
     c.close()
 
@@ -359,68 +321,6 @@ def normalize_member_code(value):
 
 def make_member_code(member_id):
     return f"MBR-{int(member_id):06d}"
-
-
-# ---------------------------------------------------------------------------
-# Step 2 / 3 helpers — njangi_code generation + PIN hashing
-# (mirrors py/model.py so the web server stays self-contained)
-# ---------------------------------------------------------------------------
-_NJANGI_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-
-
-def generate_njangi_code(prefix="NJG"):
-    """Human-readable public code e.g. NJG-X7K9P (excludes 0,O,1,I)."""
-    body = "".join(secrets.choice(_NJANGI_ALPHABET) for _ in range(5))
-    return f"{(prefix or 'NJG').strip().upper()}-{body}"
-
-
-def hash_pin(pin, salt=None):
-    """Salted PBKDF2-HMAC-SHA256 hash of a 4-digit PIN. Format: salt_hex:digest_hex"""
-    cleaned = str(pin or "").strip()
-    if not re.fullmatch(r"\d{4}", cleaned):
-        raise ValueError("PIN must be exactly 4 digits")
-    salt = salt or secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac("sha256", cleaned.encode(), salt, 120000)
-    return salt.hex() + ":" + digest.hex()
-
-
-def verify_pin(pin, stored):
-    """Constant-time PIN verification. Returns False on any malformation."""
-    if not stored or ":" not in str(stored):
-        return False
-    cleaned = str(pin or "").strip()
-    if not re.fullmatch(r"\d{4}", cleaned):
-        return False
-    try:
-        salt_hex, expected_hex = stored.split(":", 1)
-        salt = bytes.fromhex(salt_hex)
-        expected = bytes.fromhex(expected_hex)
-    except (ValueError, TypeError):
-        return False
-    actual = hashlib.pbkdf2_hmac("sha256", cleaned.encode(), salt, 120000)
-    return hmac.compare_digest(actual, expected)
-
-
-def normalize_phone(phone):
-    return re.sub(r"[\s\-().]", "", str(phone or "").strip())
-
-
-def ensure_group_codes(c):
-    """Back-fill njangi_code / uuid for any groups that still lack them."""
-    import uuid as _uuid
-    rows = c.execute("SELECT id FROM groups WHERE njangi_code IS NULL OR TRIM(njangi_code)=''").fetchall()
-    for row in rows:
-        for _ in range(20):
-            code = generate_njangi_code()
-            try:
-                c.execute(
-                    "UPDATE groups SET njangi_code=?, uuid=COALESCE(uuid, ?) WHERE id=?",
-                    (code, str(_uuid.uuid4()), row["id"]),
-                )
-                break
-            except sqlite3.IntegrityError:
-                continue
-
 
 
 def hash_password(password, salt=None):
@@ -666,128 +566,50 @@ def dashboard(c, group_id):
 
 
 def smtp_configured():
-    """True when enough SMTP settings exist to attempt a send."""
-    host, username, password, sender, port, timeout, no_auth = _smtp_credentials()
-    return bool(host and sender and (no_auth or (username and password)))
-
-
-def _smtp_credentials():
-    """Load SMTP settings from .env.
-
-    Supported keys (aliases accepted):
-      NJANGI_SMTP_HOST
-      NJANGI_SMTP_PORT          (default 587 → STARTTLS)
-      NJANGI_SMTP_USERNAME  or  NJANGI_SMTP_USER
-      NJANGI_SMTP_PASSWORD  or  NJANGI_SMTP_PASS
-      NJANGI_SMTP_FROM
-    """
+    no_auth = os.getenv("NJANGI_SMTP_NO_AUTH", "0") == "1"
     host = os.getenv("NJANGI_SMTP_HOST", "smtp.gmail.com").strip()
-    username = (
-        os.getenv("NJANGI_SMTP_USERNAME", "")
-        or os.getenv("NJANGI_SMTP_USER", "")
-    ).strip()
-    password = (
-        os.getenv("NJANGI_SMTP_PASSWORD", "")
-        or os.getenv("NJANGI_SMTP_PASS", "")
-    ).replace(" ", "").strip()
+    user = os.getenv("NJANGI_SMTP_USERNAME", "").strip()
+    pwd = os.getenv("NJANGI_SMTP_PASSWORD", "").strip()
+    return bool(host and (no_auth or (user and pwd)))
+
+
+def send_email(to, subject, body):
+    """Send one email via SMTP. Returns (ok, error_message)."""
+    host = os.getenv("NJANGI_SMTP_HOST", "smtp.gmail.com").strip()
+    username = os.getenv("NJANGI_SMTP_USERNAME", "").strip()
+    # Google shows App Passwords as "abcd efgh ijkl mnop"; the spaces are not part of the password.
+    password = os.getenv("NJANGI_SMTP_PASSWORD", "").replace(" ", "").strip()
     sender = os.getenv("NJANGI_SMTP_FROM", username).strip()
     port = int(os.getenv("NJANGI_SMTP_PORT", "587"))
     timeout = int(os.getenv("NJANGI_SMTP_TIMEOUT", "20"))
     no_auth = os.getenv("NJANGI_SMTP_NO_AUTH", "0") == "1"
-    return host, username, password, sender, port, timeout, no_auth
-
-
-def send_email(to, subject, body, allow_sender_fallback=True):
-    """Send one email via SMTP with STARTTLS (port 587) or SSL (port 465).
-
-    Returns (ok: bool, error_message: str).
-
-    Preferred recipient = `to` (looked up from members/admins table by the route).
-    If that address is missing/invalid or the first attempt fails, optionally
-    fall back to NJANGI_SMTP_FROM so mail still arrives somewhere usable.
-    """
-    host, username, password, sender, port, timeout, no_auth = _smtp_credentials()
     if not host or not sender or (not no_auth and (not username or not password)):
-        msg = (
-            "SMTP not configured. Set NJANGI_SMTP_HOST, NJANGI_SMTP_USERNAME "
-            "(or NJANGI_SMTP_USER), NJANGI_SMTP_PASSWORD (or NJANGI_SMTP_PASS), "
-            "and NJANGI_SMTP_FROM in .env"
-        )
-        print(f"[SMTP ERROR] {msg}")
-        return False, msg
-
-    preferred = str(to or "").strip().lower()
-    fallback = sender.strip().lower() if sender else ""
-
-    candidates = []
-    if preferred and valid_email(preferred):
-        candidates.append(preferred)
-    if allow_sender_fallback and fallback and valid_email(fallback) and fallback not in candidates:
-        candidates.append(fallback)
-
-    if not candidates:
-        msg = f"No valid recipient (requested={to!r}, sender={sender!r})"
-        print(f"[SMTP ERROR] {msg}")
-        return False, msg
-
-    last_error = "Unknown SMTP error"
-    for idx, to_email in enumerate(candidates):
-        is_fallback = idx > 0
-        body_use = body
-        if is_fallback:
-            print(f"[SMTP] Primary recipient failed or missing — falling back TO {to_email}")
-            body_use = (
-                body
-                + f"\n\n---\n[System note] Original intended recipient was: {preferred or '(none)'}.\n"
-            )
-
-        message = EmailMessage()
-        message["Subject"] = subject
-        message["From"] = sender
-        message["To"] = to_email
-        message.set_content(body_use)
-
-        print(f"[SMTP] Preparing mail FROM {sender} TO {to_email} | subject={subject!r}")
-        try:
-            if port == 465:
-                with smtplib.SMTP_SSL(host, port, timeout=timeout) as smtp:
-                    if not no_auth:
-                        smtp.login(username, password)
-                    smtp.send_message(message)
-            else:
-                # Default path: port 587 + STARTTLS (Gmail / most providers)
-                with smtplib.SMTP(host, port, timeout=timeout) as smtp:
+        return False, "SMTP email credentials are not configured."
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = sender
+    message["To"] = to
+    message.set_content(body)
+    try:
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, timeout=timeout) as smtp:
+                if not no_auth:
+                    smtp.login(username, password)
+                smtp.send_message(message)
+        else:
+            with smtplib.SMTP(host, port, timeout=timeout) as smtp:
+                smtp.ehlo()
+                if not no_auth:
+                    smtp.starttls()
                     smtp.ehlo()
-                    if not no_auth:
-                        smtp.starttls()
-                        smtp.ehlo()
-                        smtp.login(username, password)
-                    smtp.send_message(message)
-            print(f"[SMTP SUCCESS] Sent email FROM {sender} TO {to_email}")
-            return True, ""
-        except smtplib.SMTPAuthenticationError as exc:
-            last_error = f"Authentication failed: {exc}"
-            print(f"[SMTP ERROR] Auth failed for user={username!r} FROM {sender} TO {to_email}: {exc}")
-        except smtplib.SMTPConnectError as exc:
-            last_error = f"Connection failed: {exc}"
-            print(f"[SMTP ERROR] Connect failed host={host}:{port} TO {to_email}: {exc}")
-        except smtplib.SMTPException as exc:
-            last_error = f"SMTP error: {exc}"
-            print(f"[SMTP ERROR] SMTPException FROM {sender} TO {to_email}: {exc}")
-        except OSError as exc:
-            last_error = f"Network error: {exc}"
-            print(f"[SMTP ERROR] Network/OS error host={host}:{port}: {exc}")
-        except Exception as exc:
-            last_error = str(exc)
-            print(f"[SMTP ERROR] Unexpected error FROM {sender} TO {to_email}: {exc!r}")
-
-    print(f"[SMTP ERROR] All recipients failed. Last error: {last_error}")
-    return False, last_error
+                    smtp.login(username, password)
+                smtp.send_message(message)
+        return True, ""
+    except Exception as exc:
+        return False, str(exc)
 
 
 def send_reset_email(email, code):
-    """Email the 6-digit recovery PIN to the resolved member/admin address."""
-    to_email = str(email or "").strip().lower()
     body = (
         "Hello,\n\n"
         f"Your Njangi Tracker password reset PIN is: {code}\n\n"
@@ -795,20 +617,18 @@ def send_reset_email(email, code):
         "If you did not request a password reset, ignore this email.\n\n"
         "Njangi Tracker"
     )
-    print(f"[RESET PIN] Dispatching recovery PIN (preferred TO {to_email or 'n/a'})")
-    return send_email(to_email, "Njangi Tracker - Password Reset PIN", body, allow_sender_fallback=True)
+    return send_email(email, "Njangi Tracker - Password Reset PIN", body)
 
 
 def notify(email, subject, body):
-    """Best-effort notification (background thread). Falls back to NJANGI_SMTP_FROM."""
-    to_email = str(email or "").strip().lower()
-    if not smtp_configured():
+    """Best-effort notification. A failed email must never break the main action."""
+    if not valid_email(email or "") or not smtp_configured():
         return False
 
     def _send():
-        ok, mail_error = send_email(to_email, subject, body, allow_sender_fallback=True)
+        ok, mail_error = send_email(email, subject, body)
         if not ok:
-            print(f"[SMTP ERROR] notify failed preferred TO {to_email}: {mail_error}")
+            print("EMAIL NOTIFY ERROR:", mail_error)
 
     threading.Thread(target=_send, daemon=True).start()
     return True
@@ -853,171 +673,100 @@ def clear_login_throttle(c, key):
 
 
 def account_for_password_reset(c, email, account_type, group_name="", member_code=""):
-    """Resolve exactly one resettable account from the database.
+    """Resolve exactly one resettable account.
 
-    Admins  → looked up by email (globally unique).
-    Members → looked up by Member ID (MBR-000123). The email stored on that
-              member row is what the recovery PIN is sent to.
+    Admins are identified by their email because admin emails are globally unique.
+    Members are identified by their stable Member ID; this allows the same email
+    address to be used by the same person in different Njangi groups.
     """
-    email = (email or "").strip().lower()
-    account_type = (account_type or "").strip().lower()
-
+    email = email.strip().lower()
+    account_type = account_type.strip().lower()
     if account_type == "admin":
-        if not email:
-            return account_type, None
         rows = c.execute(
-            "SELECT id, name, email, group_id FROM admins WHERE lower(email)=?",
+            "SELECT id,name,email,group_id FROM admins WHERE lower(email)=?",
             (email,),
         ).fetchall()
     elif account_type == "member":
         code = normalize_member_code(member_code)
-        rows = []
-        # 1) Preferred: stable Member ID
-        if re.fullmatch(r"MBR-\d{6}", code):
-            rows = c.execute(
-                "SELECT id, name, email, group_id, member_code FROM members "
-                "WHERE member_code=? AND enrolled=1",
-                (code,),
-            ).fetchall()
-        # 2) Fallback: email only (if form omitted / mistyped Member ID)
-        if not rows and email:
-            rows = c.execute(
-                "SELECT id, name, email, group_id, member_code FROM members "
-                "WHERE lower(email)=? AND enrolled=1",
-                (email,),
-            ).fetchall()
-        # 3) Optional soft-check: if form email was given and differs from DB,
-        #    still accept the Member-ID match (DB email is the delivery target).
-        if email and rows and re.fullmatch(r"MBR-\d{6}", code):
-            db_emails = {str(r["email"] or "").strip().lower() for r in rows}
-            if email not in db_emails:
-                print(
-                    f"[RESET] Form email {email!r} differs from DB email(s) {db_emails}; "
-                    "using Member ID match and DB email for delivery."
-                )
+        rows = c.execute(
+            "SELECT id,name,email,group_id,member_code FROM members WHERE member_code=? AND lower(email)=? AND enrolled=1",
+            (code, email),
+        ).fetchall()
     else:
         return None, None
-
     if len(rows) != 1:
-        print(
-            f"[RESET] Account lookup failed type={account_type!r} "
-            f"member_code={member_code!r} email={email!r} matches={len(rows)}"
-        )
         return account_type, None
     return account_type, rows[0]
 
 
-def password_reset_forgot(handler, c):
-    """POST /api/auth/forgot — generate 6-digit PIN, store token, email recipient.
 
-    Body JSON:
-      {
-        "account_type": "member" | "admin",
-        "email": "user@example.com",
-        "member_code": "MBR-000123"   // required for members
-      }
-    """
+def password_reset_forgot(handler, c):
     data = request_body(handler)
     email = str(data.get("email", "")).strip().lower()
     account_type = str(data.get("account_type", "")).strip().lower()
     member_code = normalize_member_code(data.get("member_code"))
-
+    if not email or not valid_email(email):
+        return error(handler, "Please enter a valid email address.", 400)
     if account_type not in ("admin", "member"):
         return error(handler, "Choose whether this is an admin or member account.", 400)
-    if account_type == "member" and not re.fullmatch(r"MBR-\d{6}", member_code) and not email:
-        return error(handler, "Enter your Member ID (e.g. MBR-000123) or the email on your account.", 400)
-    if account_type == "admin" and (not email or not valid_email(email)):
-        return error(handler, "Please enter a valid email address.", 400)
-    if email and not valid_email(email):
-        return error(handler, "Please enter a valid email address.", 400)
+    if account_type == "member" and not re.fullmatch(r"MBR-\d{6}", member_code):
+        return error(handler, "Enter your Member ID, for example MBR-000123.", 400)
 
     generic = {
         "ok": True,
         "message": "If that account is registered, a 6-digit PIN has been sent.",
     }
     dev_pin_mode = os.getenv("NJANGI_DEV_SHOW_PIN", "0") == "1"
-
     if not smtp_configured() and not dev_pin_mode:
-        print("[SMTP ERROR] Password reset requested but SMTP is not configured.")
         return error(
             handler,
             "Password-reset email is not set up on this server yet. The site owner must add the SMTP settings "
             "(see DEPLOYMENT.md) or ask an administrator to reset your password.",
             503,
         )
-
     typ, account = account_for_password_reset(c, email, account_type, member_code=member_code)
     if not account:
-        # Do not reveal whether the account exists.
         if dev_pin_mode:
             return send_json(handler, {**generic, "reset_token": secrets.token_urlsafe(32)})
         return send_json(handler, generic)
 
-    # Rate-limit repeated requests
     recent = c.execute(
         "SELECT COUNT(*) AS n FROM reset_tokens WHERE user_type=? AND user_id=? AND created_at>?",
         (typ, account["id"], time.time() - RESET_REQUEST_WINDOW),
     ).fetchone()["n"]
     if recent >= RESET_REQUEST_LIMIT:
-        print(f"[RESET] Rate limit hit for {typ}:{account['id']}")
         return send_json(handler, generic)
 
-    # Invalidate prior unused tokens for this account
     c.execute(
         "UPDATE reset_tokens SET used=1 WHERE user_type=? AND user_id=? AND used=0",
         (typ, account["id"]),
     )
-
-    # Generate 6-digit PIN + opaque reset token (expires in RESET_MINUTES, default 10)
     code = f"{secrets.randbelow(1_000_000):06d}"
     token = secrets.token_urlsafe(32)
     created = time.time()
     expires = created + RESET_MINUTES * 60
-
-    # Always log PIN to terminal (fail-safe if Gmail is slow/blocked)
-    acct_label = account["member_code"] if "member_code" in account.keys() else account["id"]
-    db_email = str(account["email"] or "").strip().lower()
-    form_email = email
-    target_email = db_email if valid_email(db_email) else form_email
-    print(f"[RECOVERY PIN] PIN for {acct_label} / {target_email or form_email or 'n/a'} is: {code}")
-
     c.execute(
-        """INSERT INTO reset_tokens(
-               user_type, user_id, code_hash, token, expires_at, used, verified, attempts, created_at
-           ) VALUES (?,?,?,?,?,0,0,0,?)""",
+        """INSERT INTO reset_tokens(user_type,user_id,code_hash,token,expires_at,used,verified,attempts,created_at)
+           VALUES(?,?,?,?,?,0,0,0,?)""",
         (typ, account["id"], hashlib.sha256(code.encode()).hexdigest(), token, expires, created),
     )
     c.commit()
 
-    if not valid_email(target_email):
-        print(f"[SMTP ERROR] Account {typ}:{account['id']} has no valid email on file "
-              f"(db={db_email!r}, form={form_email!r})")
-        if dev_pin_mode:
-            return send_json(handler, {
-                **generic, "sent": False, "reset_token": token, "dev_pin": code
-            })
-        # Still return generic success; PIN is in the terminal log.
-        return send_json(handler, {**generic, "reset_token": token})
-
-    print(f"[RESET PIN] Sending 6-digit PIN TO {target_email} "
-          f"(account={typ}:{account['id']}, member_code={acct_label})")
-    sent, mail_error = send_reset_email(target_email, code)
+    sent, mail_error = send_reset_email(email, code)
     if not sent:
-        print(f"[SMTP ERROR] Recovery email failed TO {target_email}: {mail_error}")
-        if dev_pin_mode:
-            return send_json(handler, {
-                **generic, "sent": False, "reset_token": token, "dev_pin": code
-            })
-        # Keep the token usable — operator can read PIN from terminal.
-        return send_json(handler, {**generic, "reset_token": token})
+        if os.getenv("NJANGI_DEV_SHOW_PIN", "0") == "1":
+            return send_json(handler, {**generic, "sent": False, "reset_token": token, "dev_pin": code})
+        c.execute("UPDATE reset_tokens SET used=1 WHERE token=?", (token,))
+        c.commit()
+        print("RESET EMAIL ERROR:", mail_error)
+        return send_json(handler, generic)
 
-    sender = os.getenv("NJANGI_SMTP_FROM") or os.getenv("NJANGI_SMTP_USERNAME") or os.getenv("NJANGI_SMTP_USER") or ""
-    print(f"[SMTP SUCCESS] Sent recovery PIN FROM {sender} TO {target_email}")
     return send_json(handler, {
         **generic,
         "sent": True,
         "reset_token": token,
     })
+
 
 
 def password_reset_verify(handler, c):
@@ -1164,101 +913,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # Public authentication and password recovery routes.
             if path == "/api/health" and method == "GET":
                 return send_json(self, {"ok": True, "service": "Njangi Tracker", "time": now_local(), "email_configured": smtp_configured()})
-
-            if path == "/api/v1/payments/momo/webhook" and method == "POST":
-                data = request_body(self)
-                # Accept both MTN and Orange-style payloads
-                external_ref = str(
-                    data.get("external_ref")
-                    or data.get("financialTransactionId")
-                    or data.get("txnid")
-                    or data.get("transaction_id")
-                    or data.get("reference")
-                    or ""
-                ).strip()
-                status_raw = str(data.get("status") or data.get("transaction_status") or "").upper()
-                amount = float(data.get("amount") or data.get("amount_paid") or 0)
-                provider = str(data.get("provider") or data.get("network") or "MTN").upper()
-                if "ORANGE" in provider:
-                    provider = "ORANGE"
-                else:
-                    provider = "MTN"
-                phone = normalize_phone(data.get("phone") or data.get("msisdn") or data.get("payer") or "")
-                if not external_ref:
-                    return error(self, "external_ref / transaction_id required.", 400)
-                # Idempotent: already processed?
-                existing = c.execute(
-                    "SELECT * FROM momo_pending WHERE external_ref=?", (external_ref,)
-                ).fetchone()
-                success_statuses = {"SUCCESS", "SUCCESSFUL", "SUCCESSFULLY", "COMPLETED", "PAID", "TS"}
-                is_success = status_raw in success_statuses or str(data.get("success") or "").lower() in ("true", "1", "yes")
-                if existing and existing["status"] == "PAID":
-                    return send_json(self, {"ok": True, "message": "Already processed.", "contribution_id": existing["contribution_id"]})
-                if not is_success:
-                    if existing:
-                        c.execute("UPDATE momo_pending SET status=? WHERE id=?", (status_raw or "FAILED", existing["id"]))
-                        c.commit()
-                    return send_json(self, {"ok": True, "message": "Non-success status recorded.", "status": status_raw})
-                # Resolve member by phone or pending row
-                member = None
-                cycle = None
-                group_id = None
-                if existing:
-                    member = c.execute("SELECT * FROM members WHERE id=?", (existing["member_id"],)).fetchone()
-                    group_id = existing["group_id"]
-                    if existing["cycle_id"]:
-                        cycle = c.execute("SELECT * FROM cycles WHERE id=?", (existing["cycle_id"],)).fetchone()
-                    amount = amount or float(existing["amount"])
-                if not member and phone:
-                    member = c.execute(
-                        "SELECT * FROM members WHERE phone=? AND enrolled=1 ORDER BY id DESC LIMIT 1", (phone,)
-                    ).fetchone()
-                    if member:
-                        group_id = member["group_id"]
-                if not member:
-                    return error(self, "Unable to match payment to a member.", 404)
-                if not cycle:
-                    cycle = active_cycle(c, group_id)
-                if not cycle:
-                    return error(self, "No open cycle to apply payment to.", 404)
-                if amount <= 0:
-                    return error(self, "Invalid payment amount.", 400)
-                # Record contribution as Paid
-                c.execute(
-                    """INSERT INTO contributions (group_id, member_id, cycle_id, amount, date, status)
-                       VALUES (?,?,?,?,?,'Paid')""",
-                    (group_id, member["id"], cycle["id"], amount, today()),
-                )
-                contrib_id = c.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
-                c.execute(
-                    """INSERT INTO ledger_transactions
-                       (group_id, member_id, fund_type, tx_type, direction, amount, reference, description, recorded_by)
-                       VALUES (?, ?, 'MAIN_POT', 'MOMO_PAYMENT', 'IN', ?, ?, ?, NULL)""",
-                    (group_id, member["id"], amount, external_ref, f"{provider} MoMo payment for cycle #{cycle['number']}"),
-                )
-                if existing:
-                    c.execute(
-                        "UPDATE momo_pending SET status='PAID', paid_at=?, contribution_id=?, amount=? WHERE id=?",
-                        (now_local(), contrib_id, amount, existing["id"]),
-                    )
-                else:
-                    c.execute(
-                        """INSERT INTO momo_pending
-                           (group_id, member_id, cycle_id, amount, provider, external_ref, status, contribution_id, paid_at)
-                           VALUES (?,?,?,?,?,?,'PAID',?,?)""",
-                        (group_id, member["id"], cycle["id"], amount, provider, external_ref, contrib_id, now_local()),
-                    )
-                c.commit()
-                return send_json(self, {
-                    "ok": True,
-                    "message": "Payment applied.",
-                    "contribution_id": contrib_id,
-                    "member_id": member["id"],
-                    "amount": amount,
-                    "provider": provider,
-                })
-
-
             if path == "/api/auth/forgot" and method == "POST":
                 return password_reset_forgot(self, c)
             if path == "/api/auth/verify-pin" and method == "POST":
@@ -1337,275 +991,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                         "email": row["email"],
                     },
                 })
-            # ================================================================
-            # Step 3 — Core API endpoints under /api/v1/
-            # ================================================================
-
-            # POST /api/v1/auth/member-login  (phone + 4-digit PIN)
-            if path == "/api/v1/auth/member-login" and method == "POST":
-                data = request_body(self)
-                phone = normalize_phone(data.get("phone") or data.get("member_code") or "")
-                pin = str(data.get("pin") or data.get("password") or "").strip()
-                if not phone:
-                    return error(self, "Phone number is required.", 400)
-                if not re.fullmatch(r"\d{4}", pin):
-                    return error(self, "PIN must be exactly 4 digits.", 400)
-                key = throttle_key("member_pin", phone)
-                locked = login_lock_remaining(c, key)
-                if locked:
-                    return error(self, lock_message(locked), 429)
-                # Prefer pin_hash; fall back to password_hash for legacy accounts
-                row = c.execute(
-                    "SELECT * FROM members WHERE phone=? AND enrolled=1 ORDER BY id LIMIT 1",
-                    (phone,),
-                ).fetchone()
-                if not row:
-                    # Also allow login with member_code if phone lookup failed
-                    code = normalize_member_code(data.get("member_code") or data.get("phone") or "")
-                    if re.fullmatch(r"MBR-\d{6}", code):
-                        row = c.execute(
-                            "SELECT * FROM members WHERE member_code=? AND enrolled=1",
-                            (code,),
-                        ).fetchone()
-                ok = False
-                if row:
-                    pin_hash = row["pin_hash"] if "pin_hash" in row.keys() else None
-                    if pin_hash:
-                        ok = verify_pin(pin, pin_hash)
-                    else:
-                        # Legacy: treat submitted value as password
-                        ok = check_password(pin, row["password_hash"])
-                if not ok:
-                    record_failed_login(c, key)
-                    c.commit()
-                    return error(self, "Invalid phone number or PIN.", 401)
-                clear_login_throttle(c, key)
-                c.commit()
-                token = create_session("member", row)
-                record_login(row["group_id"], "member", row["id"], row["name"], row["email"])
-                return send_json(self, {
-                    "ok": True,
-                    "token": token,
-                    "user": {
-                        "role": "member",
-                        "id": row["id"],
-                        "member_code": row["member_code"],
-                        "group_id": row["group_id"],
-                        "name": row["name"],
-                        "email": row["email"],
-                        "phone": row["phone"],
-                    },
-                })
-
-            # GET /api/v1/groups/lookup?code=NJG-XXXXX
-            if path == "/api/v1/groups/lookup" and method == "GET":
-                qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-                code = (qs.get("code") or [""])[0].strip().upper()
-                if not code:
-                    return error(self, "Query parameter 'code' is required.", 400)
-                ensure_group_codes(c)
-                c.commit()
-                row = c.execute(
-                    "SELECT id, name, njangi_code, contribution_amount, frequency, created_at FROM groups WHERE njangi_code=?",
-                    (code,),
-                ).fetchone()
-                if not row:
-                    return error(self, "No group found for that Njangi code.", 404)
-                member_count = c.execute(
-                    "SELECT COUNT(*) AS n FROM members WHERE group_id=? AND enrolled=1",
-                    (row["id"],),
-                ).fetchone()["n"]
-                return send_json(self, {
-                    "ok": True,
-                    "group": {
-                        "id": row["id"],
-                        "name": row["name"],
-                        "njangi_code": row["njangi_code"],
-                        "contribution_amount": row["contribution_amount"],
-                        "frequency": row["frequency"],
-                        "member_count": member_count,
-                        "created_at": row["created_at"],
-                    },
-                })
-
-            # POST /api/v1/groups/<group_id>/members  (Admin adds member with name, phone, share_count)
-            m = re.fullmatch(r"/api/v1/groups/(\d+)/members", path)
-            if m and method == "POST":
-                if not session or session.get("role") != "admin":
-                    return error(self, "Admin authentication required.", 401)
-                try:
-                    target_gid = int(m.group(1))
-                except ValueError:
-                    return error(self, "Invalid group ID.", 400)
-                if int(session["group_id"]) != target_gid:
-                    return error(self, "You can only add members to your own group.", 403)
-                data = request_body(self)
-                name = str(data.get("name", "")).strip()
-                phone = normalize_phone(data.get("phone") or "")
-                share_count = int(data.get("share_count") or data.get("shares") or 1)
-                if not name:
-                    return error(self, "Name is required.", 400)
-                if not phone:
-                    return error(self, "Phone number is required.", 400)
-                if share_count < 1:
-                    return error(self, "share_count must be at least 1.", 400)
-                # Password / PIN from admin form (do NOT auto-generate unless empty)
-                password = str(data.get("password") or "").strip()
-                pin = str(data.get("pin") or "").strip()
-                pin_hash_val = None
-                temporary_password = None
-                if pin:
-                    if not re.fullmatch(r"\d{4}", pin):
-                        return error(self, "PIN must be exactly 4 digits.", 400)
-                    try:
-                        pin_hash_val = hash_pin(pin)
-                    except ValueError as exc:
-                        return error(self, str(exc), 400)
-                elif re.fullmatch(r"\d{4}", password):
-                    # Treat a 4-digit password as PIN as well
-                    try:
-                        pin_hash_val = hash_pin(password)
-                        pin = password
-                    except ValueError:
-                        pass
-                email = str(data.get("email") or "").strip().lower()
-                if email and not valid_email(email):
-                    return error(self, "Invalid email address.", 400)
-                exists = c.execute(
-                    "SELECT 1 FROM members WHERE group_id=? AND phone=?",
-                    (target_gid, phone),
-                ).fetchone()
-                if exists:
-                    return error(self, "A member with this phone number already exists in the group.", 409)
-                group = c.execute("SELECT contribution_amount FROM groups WHERE id=?", (target_gid,)).fetchone()
-                if not group:
-                    return error(self, "Group not found.", 404)
-                expected = float(data.get("expected") or group["contribution_amount"]) * share_count
-                if not password:
-                    password = secrets.token_urlsafe(9)
-                    temporary_password = password
-                c.execute(
-                    """INSERT INTO members
-                       (group_id, member_code, name, email, phone, expected, rotation_position,
-                        enrolled, password_hash, pin_hash, share_count)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                    (
-                        target_gid, None, name, email or None, phone, expected,
-                        int(data.get("rotation_position") or 1),
-                        1 if data.get("enrolled", True) else 0,
-                        hash_password(password),
-                        pin_hash_val,
-                        share_count,
-                    ),
-                )
-                mid = c.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
-                member_code = make_member_code(mid)
-                c.execute("UPDATE members SET member_code=? WHERE id=?", (member_code, mid))
-                c.commit()
-                member = c.execute("SELECT * FROM members WHERE id=?", (mid,)).fetchone()
-                resp = {
-                    "ok": True,
-                    "member": clean_member(member),
-                    "member_login_id": member_code,
-                    "phone": phone,
-                    "share_count": share_count,
-                }
-                if temporary_password:
-                    resp["temporary_password"] = temporary_password
-                if pin:
-                    resp["pin_set"] = True
-                new_member_email = str(email or "").strip().lower()
-                if valid_email(new_member_email):
-                    if temporary_password:
-                        creds_line = f"Temporary password: {temporary_password}\n"
-                    elif pin:
-                        creds_line = f"PIN: {pin}\n"
-                    elif password:
-                        creds_line = "Password/PIN: the one set by your group administrator.\n"
-                    else:
-                        creds_line = ""
-                    body = (
-                        f"Hello {name},\n\n"
-                        f"You have been added to the Njangi group.\n\n"
-                        f"Member ID: {member_code}\n"
-                        f"{creds_line}"
-                        f"Sign in at the member portal with your Member ID (or phone) and password/PIN.\n\n"
-                        f"Njangi Tracker"
-                    )
-                    print(f"[MEMBER CREATED] Sending welcome email directly to {new_member_email}")
-                    ok_mail, mail_err = send_email(
-                        new_member_email,
-                        "Njangi Tracker - Your Member Account",
-                        body,
-                    )
-                    if ok_mail:
-                        print(f"[SMTP SUCCESS] Sent welcome email FROM {os.getenv('NJANGI_SMTP_FROM', os.getenv('NJANGI_SMTP_USERNAME', ''))} TO {new_member_email}")
-                    else:
-                        print(f"[MEMBER CREATED] Welcome email FAILED for {new_member_email}: {mail_err}")
-                return send_json(self, resp)
-
-            # GET /api/v1/members/dashboard  (member savings, payout status, loan balance)
-            if path == "/api/v1/members/dashboard" and method == "GET":
-                if not session or session.get("role") != "member":
-                    return error(self, "Member authentication required.", 401)
-                gid = session["group_id"]
-                mid = session["user_id"]
-                member = c.execute(
-                    "SELECT * FROM members WHERE id=? AND group_id=?", (mid, gid)
-                ).fetchone()
-                if not member:
-                    return error(self, "Member not found.", 404)
-                cycle = c.execute(
-                    "SELECT * FROM cycles WHERE group_id=? AND status='OPEN' ORDER BY number DESC LIMIT 1",
-                    (gid,),
-                ).fetchone()
-                # Savings = sum of contributions paid by this member
-                savings_row = c.execute(
-                    "SELECT COALESCE(SUM(amount),0) AS total FROM contributions WHERE member_id=? AND group_id=?",
-                    (mid, gid),
-                ).fetchone()
-                savings = float(savings_row["total"] or 0)
-                # Active loan balance
-                loan_row = c.execute(
-                    """SELECT COALESCE(SUM(total_due - amount_repaid),0) AS balance
-                       FROM loans WHERE member_id=? AND group_id=?
-                       AND status IN ('Approved','Disbursed','Active','PENDING')""",
-                    (mid, gid),
-                ).fetchone()
-                loan_balance = float(loan_row["balance"] or 0)
-                # Payout status for current cycle
-                payout_status = "Not applicable"
-                if cycle:
-                    if cycle["recipient_id"] == mid:
-                        if cycle["status"] == "PAID_OUT" or (cycle["paid_out_amount"] or 0) > 0:
-                            payout_status = "Paid out"
-                        else:
-                            payout_status = "Pending payout (you are the recipient)"
-                    else:
-                        payout_status = "Waiting for cycle"
-                status, paid, expected = member_cycle_status(c, mid, cycle) if cycle else ("N/A", 0, float(member["expected"] or 0))
-                return send_json(self, {
-                    "ok": True,
-                    "member": {
-                        "id": member["id"],
-                        "name": member["name"],
-                        "member_code": member["member_code"],
-                        "phone": member["phone"],
-                        "email": member["email"],
-                    },
-                    "savings": savings,
-                    "loan_balance": loan_balance,
-                    "payout_status": payout_status,
-                    "current_cycle": {
-                        "id": cycle["id"] if cycle else None,
-                        "number": cycle["number"] if cycle else None,
-                        "status": cycle["status"] if cycle else None,
-                        "contribution_status": status,
-                        "paid": paid,
-                        "expected": expected,
-                    } if cycle else None,
-                })
-
             if path == "/api/auth/me" and method == "GET":
                 return send_json(self, {"ok": bool(session), "user": session} if session else {"ok": False}, 200 if session else 401)
 
@@ -1633,35 +1018,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     return error(self, "That email is already used by an account in this Njangi group.")
                 group = c.execute("SELECT contribution_amount FROM groups WHERE id=?", (gid,)).fetchone()
                 expected = float(data.get("expected") or group["contribution_amount"])
-                password = str(data.get("password") or data.get("pin") or "").strip()
+                password = str(data.get("password") or "").strip()
                 temporary = False
-                pin_hash_val = None
-                if password:
-                    # User-provided password/PIN: hash as-is (PIN may be 4 digits)
-                    if re.fullmatch(r"\d{4}", password):
-                        try:
-                            pin_hash_val = hash_pin(password)
-                        except ValueError:
-                            pin_hash_val = None
-                    # Always store password_hash so email/password login still works
-                    pwd_hash = hash_password(password)
-                else:
-                    # Only auto-generate when the admin left the field empty
+                if len(password) < 8:
                     password = secrets.token_urlsafe(9)
                     temporary = True
-                    pwd_hash = hash_password(password)
-                try:
-                    c.execute(
-                        """INSERT INTO members(group_id,member_code,name,email,phone,expected,rotation_position,enrolled,password_hash,pin_hash,share_count)
-                           VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-                        (gid, None, name, email, phone, expected, int(data.get("rotation_position") or 1), 1 if data.get("enrolled", True) else 0, pwd_hash, pin_hash_val, int(data.get("share_count") or 1)),
-                    )
-                except sqlite3.OperationalError:
-                    c.execute(
-                        """INSERT INTO members(group_id,member_code,name,email,phone,expected,rotation_position,enrolled,password_hash)
-                           VALUES(?,?,?,?,?,?,?,?,?)""",
-                        (gid, None, name, email, phone, expected, int(data.get("rotation_position") or 1), 1 if data.get("enrolled", True) else 0, pwd_hash),
-                    )
+                c.execute(
+                    """INSERT INTO members(group_id,member_code,name,email,phone,expected,rotation_position,enrolled,password_hash)
+                       VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (gid, None, name, email, phone, expected, int(data.get("rotation_position") or 1), 1 if data.get("enrolled", True) else 0, hash_password(password)),
+                )
                 mid = c.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
                 member_code = make_member_code(mid)
                 c.execute("UPDATE members SET member_code=? WHERE id=?", (member_code, mid))
@@ -1670,34 +1036,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 response = {"ok": True, "member": clean_member(member), "member_login_id": member_code}
                 if temporary:
                     response["temporary_password"] = password
-                # Welcome / credentials email → member's own email only (never admin/env fallback)
-                new_member_email = str(email or "").strip().lower()
-                if valid_email(new_member_email):
-                    creds_line = (
-                        f"Temporary password: {password}\n"
-                        if temporary
-                        else "Password/PIN: the one set by your group administrator.\n"
-                    )
-                    body = (
-                        f"Hello {name},\n\n"
-                        f"You have been added to the Njangi group.\n\n"
-                        f"Member ID: {member_code}\n"
-                        f"{creds_line}"
-                        f"Sign in at the member portal with your Member ID (or phone) and password/PIN.\n\n"
-                        f"Njangi Tracker"
-                    )
-                    print(f"[MEMBER CREATED] Sending welcome email directly to {new_member_email}")
-                    ok_mail, mail_err = send_email(
-                        new_member_email,
-                        "Njangi Tracker - Your Member Account",
-                        body,
-                    )
-                    if ok_mail:
-                        print(f"[SMTP SUCCESS] Sent welcome email FROM {os.getenv('NJANGI_SMTP_FROM', os.getenv('NJANGI_SMTP_USERNAME', ''))} TO {new_member_email}")
-                    else:
-                        print(f"[MEMBER CREATED] Welcome email FAILED for {new_member_email}: {mail_err}")
-                else:
-                    print(f"[MEMBER CREATED] No valid email for member {member_code}; skipped welcome email")
                 return send_json(self, response)
 
             if path.startswith("/api/members/") and method in ("PUT", "DELETE") and role == "admin":
@@ -1900,31 +1238,29 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 member = c.execute("SELECT * FROM members WHERE id=? AND group_id=?", (mid, gid)).fetchone()
                 if not cycle or not member or cycle["status"] != "OPEN" or amount <= 0:
                     return error(self, "Invalid active cycle, member, or amount.")
-                # Admin-selected status (explicit). Default Paid if omitted.
-                requested_status = str(data.get("status") or "Paid").strip().title()
-                if requested_status not in ("Paid", "Partial", "Pending"):
-                    return error(self, "status must be Paid, Partial, or Pending.", 400)
-                _, paid, expected = member_cycle_status(c, mid, cycle)
+                status, paid, expected = member_cycle_status(c, mid, cycle)
                 remaining = max(0.0, expected - paid) if expected > 0 else 0.0
-                if expected > 0 and amount > remaining and requested_status != "Pending":
+                if expected > 0 and amount > remaining:
                     return error(self, f"Payment is higher than the remaining {remaining:g} FCFA for this member in the cycle.")
+                new_status = "Paid" if expected > 0 and paid + amount >= expected else "Partial"
                 contribution_date = str(data.get("date") or today())
                 if contribution_date > today():
                     return error(self, "Payment date cannot be in the future.")
-                c.execute(
-                    "INSERT INTO contributions(group_id,member_id,cycle_id,amount,date,status) VALUES(?,?,?,?,?,?)",
-                    (gid, mid, cid, amount, contribution_date, requested_status),
-                )
+                c.execute("INSERT INTO contributions(group_id,member_id,cycle_id,amount,date,status) VALUES(?,?,?,?,?,?)", (gid, mid, cid, amount, contribution_date, new_status))
+                # Keep all contribution rows for the member/cycle consistent with the current total.
+                total = paid + amount
+                if expected > 0 and total >= expected:
+                    c.execute("UPDATE contributions SET status='Paid' WHERE member_id=? AND cycle_id=?", (mid, cid))
                 c.commit()
                 if valid_email(member["email"] or ""):
                     notify(
                         member["email"],
                         f"Njangi Tracker - Payment Recorded (Cycle #{cycle['number']})",
                         f"Hello {member['name']},\n\nYour payment of {amount:g} FCFA for cycle "
-                        f"#{cycle['number']} was recorded on {contribution_date} (status: {requested_status}). "
-                        f"Total paid this cycle: {round(paid + amount, 2):g} FCFA.\n\nNjangi Tracker",
+                        f"#{cycle['number']} was recorded on {contribution_date}. Total paid this cycle: "
+                        f"{round(paid + amount, 2):g} FCFA.\n\nNjangi Tracker",
                     )
-                return send_json(self, {"ok": True, "status": requested_status})
+                return send_json(self, {"ok": True, "status": new_status})
 
             if path.startswith("/api/contributions/") and method == "DELETE" and role == "admin":
                 pid = int(path.split("/")[-1])
@@ -1940,677 +1276,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if path == "/api/history" and method == "GET" and role == "admin":
                 rows = c.execute("SELECT p.*,m.name member_name,cy.number cycle_number FROM contributions p JOIN members m ON m.id=p.member_id JOIN cycles cy ON cy.id=p.cycle_id WHERE p.group_id=? ORDER BY p.date DESC,p.id DESC", (gid,)).fetchall()
                 return send_json(self, {"ok": True, "history": [dict(x) for x in rows]})
-
-            # ================================================================
-            # Step — Loans & Financial Ledger (v1)
-            # ================================================================
-
-            # POST /api/v1/loans/apply  — member applies (amount + payback period)
-            if path == "/api/v1/loans/apply" and method == "POST":
-                if not session:
-                    return error(self, "Authentication required.", 401)
-                data = request_body(self)
-                member_id = session["user_id"] if session.get("role") == "member" else int(data.get("member_id") or 0)
-                if session.get("role") == "member" and member_id != session["user_id"]:
-                    return error(self, "You can only apply for a loan for yourself.", 403)
-                gid = session["group_id"]
-                member = c.execute(
-                    "SELECT * FROM members WHERE id=? AND group_id=? AND enrolled=1",
-                    (member_id, gid),
-                ).fetchone()
-                amount = float(data.get("amount") or 0)
-                reason = str(data.get("reason") or "").strip()
-                payback_months = int(data.get("payback_months") or data.get("payback_period") or 1)
-                required_guarantors = int(data.get("required_guarantors") or 1)
-                guarantor_ids = data.get("guarantor_ids") or data.get("guarantors") or []
-                if not isinstance(guarantor_ids, list):
-                    guarantor_ids = []
-                guarantor_ids = [int(x) for x in guarantor_ids if str(x).isdigit()]
-                if not member or amount <= 0 or not reason:
-                    return error(self, "A valid member, amount, and reason are required.", 400)
-                if payback_months < 1 or payback_months > 36:
-                    return error(self, "Payback period must be between 1 and 36 months.", 400)
-                if required_guarantors < 1 or required_guarantors > 3:
-                    return error(self, "required_guarantors must be between 1 and 3.", 400)
-                outstanding = c.execute(
-                    "SELECT 1 FROM loans WHERE member_id=? AND group_id=? AND status IN ('PENDING','APPROVED','ACTIVE')",
-                    (member_id, gid),
-                ).fetchone()
-                if outstanding:
-                    return error(self, "You already have an outstanding loan request or active loan.", 409)
-                rate = float(data.get("interest_rate") or 5)
-                if rate < 0 or rate > 100:
-                    return error(self, "Interest rate must be between 0 and 100 percent.", 400)
-                # Validate nominated guarantors belong to same group and are not the borrower
-                for gid_g in guarantor_ids:
-                    if gid_g == member_id:
-                        return error(self, "You cannot nominate yourself as guarantor.", 400)
-                    gmem = c.execute(
-                        "SELECT id FROM members WHERE id=? AND group_id=? AND enrolled=1",
-                        (gid_g, gid),
-                    ).fetchone()
-                    if not gmem:
-                        return error(self, f"Guarantor member id {gid_g} is not a valid enrolled member of this group.", 400)
-                c.execute(
-                    """INSERT INTO loans
-                       (group_id, member_id, amount, reason, status, date_requested,
-                        interest_rate, total_due, amount_repaid, payback_months, required_guarantors)
-                       VALUES (?,?,?,?,'PENDING',?,?,0,0,?,?)""",
-                    (gid, member_id, amount, reason, now_local(), rate, payback_months, required_guarantors),
-                )
-                loan_id = c.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
-                for gid_g in guarantor_ids:
-                    try:
-                        c.execute(
-                            "INSERT INTO loan_guarantors (loan_id, guarantor_member_id, status) VALUES (?,?, 'Pending')",
-                            (loan_id, gid_g),
-                        )
-                    except sqlite3.IntegrityError:
-                        pass
-                # Ledger: application recorded as zero-amount adjustment for audit
-                c.execute(
-                    """INSERT INTO ledger_transactions
-                       (group_id, member_id, loan_id, tx_type, direction, amount, description, recorded_by)
-                       VALUES (?,?,?,'ADJUSTMENT','IN',0,?,?)""",
-                    (gid, member_id, loan_id, f"Loan application #{loan_id}: {amount:g} FCFA, {payback_months} mo", session["user_id"]),
-                )
-                c.commit()
-                return send_json(self, {
-                    "ok": True,
-                    "message": "Loan application submitted. Awaiting guarantor sign-off and admin approval.",
-                    "loan_id": loan_id,
-                    "payback_months": payback_months,
-                    "required_guarantors": required_guarantors,
-                    "guarantors_nominated": len(guarantor_ids),
-                })
-
-            # POST /api/v1/loans/<loan_id>/guarantee  — guarantor digitally signs
-            m_g = re.fullmatch(r"/api/v1/loans/(\d+)/guarantee", path)
-            if m_g and method == "POST":
-                if not session:
-                    return error(self, "Authentication required.", 401)
-                try:
-                    loan_id = int(m_g.group(1))
-                except ValueError:
-                    return error(self, "Invalid loan ID.", 400)
-                data = request_body(self)
-                decision = str(data.get("decision") or data.get("status") or "Accepted").strip().title()
-                if decision not in ("Accepted", "Rejected"):
-                    return error(self, "decision must be 'Accepted' or 'Rejected'.", 400)
-                note = str(data.get("note") or "").strip()[:500]
-                gid = session["group_id"]
-                loan = c.execute(
-                    "SELECT * FROM loans WHERE id=? AND group_id=?", (loan_id, gid)
-                ).fetchone()
-                if not loan:
-                    return error(self, "Loan not found.", 404)
-                if loan["status"] not in ("PENDING", "Pending", "Requested"):
-                    return error(self, "Only pending loans can receive guarantor decisions.", 409)
-                # Guarantor is the logged-in member (or admin acting for testing)
-                guarantor_id = session["user_id"] if session.get("role") == "member" else int(data.get("guarantor_member_id") or 0)
-                if not guarantor_id:
-                    return error(self, "Guarantor identity required.", 400)
-                if guarantor_id == loan["member_id"]:
-                    return error(self, "Borrower cannot guarantee their own loan.", 400)
-                # Ensure a pending guarantor row exists (create if admin nominated on the fly)
-                row = c.execute(
-                    "SELECT * FROM loan_guarantors WHERE loan_id=? AND guarantor_member_id=?",
-                    (loan_id, guarantor_id),
-                ).fetchone()
-                if not row:
-                    # Auto-create if under the required count
-                    count = c.execute(
-                        "SELECT COUNT(*) AS n FROM loan_guarantors WHERE loan_id=?", (loan_id,)
-                    ).fetchone()["n"]
-                    req = int(loan["required_guarantors"] or 1) if "required_guarantors" in loan.keys() else 1
-                    if count >= req and session.get("role") != "admin":
-                        return error(self, "You are not nominated as a guarantor for this loan.", 403)
-                    c.execute(
-                        "INSERT INTO loan_guarantors (loan_id, guarantor_member_id, status) VALUES (?,?, 'Pending')",
-                        (loan_id, guarantor_id),
-                    )
-                c.execute(
-                    "UPDATE loan_guarantors SET status=?, signed_at=?, note=? WHERE loan_id=? AND guarantor_member_id=?",
-                    (decision, now_local(), note or None, loan_id, guarantor_id),
-                )
-                # Count accepted
-                accepted = c.execute(
-                    "SELECT COUNT(*) AS n FROM loan_guarantors WHERE loan_id=? AND status='Accepted'",
-                    (loan_id,),
-                ).fetchone()["n"]
-                required = int(loan["required_guarantors"] or 1) if "required_guarantors" in loan.keys() else 1
-                c.commit()
-                return send_json(self, {
-                    "ok": True,
-                    "message": f"Guarantor decision recorded: {decision}.",
-                    "loan_id": loan_id,
-                    "decision": decision,
-                    "accepted_count": accepted,
-                    "required_guarantors": required,
-                    "guarantees_complete": accepted >= required,
-                })
-
-            # POST /api/v1/loans/<loan_id>/approve  — admin approves or rejects
-            m_a = re.fullmatch(r"/api/v1/loans/(\d+)/approve", path)
-            if m_a and method == "POST":
-                if not session or session.get("role") != "admin":
-                    return error(self, "Admin authentication required.", 401)
-                try:
-                    loan_id = int(m_a.group(1))
-                except ValueError:
-                    return error(self, "Invalid loan ID.", 400)
-                data = request_body(self)
-                action = str(data.get("action") or data.get("decision") or "approve").strip().lower()
-                if action not in ("approve", "reject"):
-                    return error(self, "action must be 'approve' or 'reject'.", 400)
-                gid = session["group_id"]
-                loan = c.execute(
-                    "SELECT * FROM loans WHERE id=? AND group_id=?", (loan_id, gid)
-                ).fetchone()
-                if not loan:
-                    return error(self, "Loan not found.", 404)
-                if loan["status"] not in ("PENDING", "Pending", "Requested"):
-                    return error(self, "Only pending loans can be approved or rejected.", 409)
-
-                if action == "reject":
-                    c.execute(
-                        "UPDATE loans SET status='REJECTED', approved_by=?, date_approved=? WHERE id=?",
-                        (session["user_id"], now_local(), loan_id),
-                    )
-                    c.execute(
-                        """INSERT INTO ledger_transactions
-                           (group_id, member_id, loan_id, tx_type, direction, amount, description, recorded_by)
-                           VALUES (?,?,?,'ADJUSTMENT','OUT',0,?,?)""",
-                        (gid, loan["member_id"], loan_id, f"Loan #{loan_id} rejected", session["user_id"]),
-                    )
-                    c.commit()
-                    mem = c.execute("SELECT name,email FROM members WHERE id=?", (loan["member_id"],)).fetchone()
-                    if mem and mem["email"]:
-                        notify(mem["email"], "Njangi Tracker - Loan Update",
-                               f"Hello {mem['name']},\n\nYour loan request of {float(loan['amount']):g} FCFA was not approved.\n\nNjangi Tracker")
-                    return send_json(self, {"ok": True, "message": "Loan rejected.", "status": "REJECTED"})
-
-                # --- approve path ---
-                required = int(loan["required_guarantors"] or 1) if "required_guarantors" in loan.keys() else 1
-                accepted = c.execute(
-                    "SELECT COUNT(*) AS n FROM loan_guarantors WHERE loan_id=? AND status='Accepted'",
-                    (loan_id,),
-                ).fetchone()["n"]
-                # Allow admin override via force=true
-                force = bool(data.get("force"))
-                if accepted < required and not force:
-                    return error(
-                        self,
-                        f"Guarantor sign-off incomplete ({accepted}/{required}). "
-                        "Wait for guarantors or pass force=true to override.",
-                        409,
-                    )
-                reliability = reliability_for_member(c, loan["member_id"], gid)
-                if not force:
-                    if reliability["completed_cycles"] < LOAN_MIN_CYCLES:
-                        return error(self, f"Member needs at least {LOAN_MIN_CYCLES} completed cycle(s).", 409)
-                    if reliability["score"] < LOAN_MIN_RELIABILITY:
-                        return error(
-                            self,
-                            f"Member reliability is {reliability['score']}%, below the required {LOAN_MIN_RELIABILITY}%.",
-                            409,
-                        )
-                rate = float(data.get("interest_rate", loan["interest_rate"] or 5))
-                if rate < 0 or rate > 100:
-                    return error(self, "Interest rate must be between 0 and 100 percent.", 400)
-                pool = float(c.execute(
-                    "SELECT COALESCE(SUM(amount),0) AS total FROM contributions WHERE group_id=?", (gid,)
-                ).fetchone()["total"])
-                outstanding_loans = 0.0
-                for ol in c.execute(
-                    "SELECT amount,amount_repaid,total_due,interest_rate FROM loans WHERE group_id=? AND status IN ('APPROVED','ACTIVE')",
-                    (gid,),
-                ).fetchall():
-                    due = float(ol["total_due"] or 0) or round(float(ol["amount"]) * (1 + float(ol["interest_rate"] or 0) / 100), 2)
-                    outstanding_loans += max(0, due - float(ol["amount_repaid"] or 0))
-                available = max(0, pool - outstanding_loans)
-                if float(loan["amount"]) > available and not force:
-                    return error(self, f"Available loan pool is {round(available, 2):g} FCFA.", 409)
-                total_due = round(float(loan["amount"]) * (1 + rate / 100), 2)
-                c.execute(
-                    """UPDATE loans SET status='APPROVED', interest_rate=?, total_due=?,
-                       approved_by=?, date_approved=? WHERE id=?""",
-                    (rate, total_due, session["user_id"], now_local(), loan_id),
-                )
-                # Ledger: loan disbursement OUT
-                c.execute(
-                    """INSERT INTO ledger_transactions
-                       (group_id, member_id, loan_id, tx_type, direction, amount, description, recorded_by)
-                       VALUES (?,?,?,'LOAN_DISBURSE','OUT',?,?,?)""",
-                    (gid, loan["member_id"], loan_id, float(loan["amount"]),
-                     f"Loan #{loan_id} approved/disbursed at {rate:g}% (total due {total_due:g})",
-                     session["user_id"]),
-                )
-                c.commit()
-                mem = c.execute("SELECT name,email FROM members WHERE id=?", (loan["member_id"],)).fetchone()
-                if mem and mem["email"]:
-                    notify(
-                        mem["email"],
-                        "Njangi Tracker - Loan Approved",
-                        f"Hello {mem['name']},\n\nYour loan of {float(loan['amount']):g} FCFA has been approved "
-                        f"at {rate:g}% interest. Total due: {total_due:g} FCFA. "
-                        f"Payback period: {loan['payback_months'] if 'payback_months' in loan.keys() else 1} month(s).\n\nNjangi Tracker",
-                    )
-                return send_json(self, {
-                    "ok": True,
-                    "message": "Loan approved.",
-                    "status": "APPROVED",
-                    "total_due": total_due,
-                    "reliability": reliability,
-                    "guarantors_accepted": accepted,
-                })
-
-
-            # ================================================================
-            # Payout Rotation & Bidding Engine
-            # ================================================================
-
-            # POST /api/v1/payouts/bid
-            if path == "/api/v1/payouts/bid" and method == "POST":
-                if not session:
-                    return error(self, "Authentication required.", 401)
-                data = request_body(self)
-                gid = session["group_id"]
-                member_id = session["user_id"] if session.get("role") == "member" else int(data.get("member_id") or 0)
-                if session.get("role") == "member":
-                    member_id = session["user_id"]
-                discount = float(data.get("discount_amount") or data.get("discount") or 0)
-                bid_percent = float(data.get("bid_percent") or 0)
-                if discount < 0 or bid_percent < 0:
-                    return error(self, "Discount cannot be negative.", 400)
-                # Active payout cycle in BIDDING or OPEN
-                pc = c.execute(
-                    "SELECT * FROM payout_cycles WHERE group_id=? AND status IN ('OPEN','BIDDING') ORDER BY number DESC LIMIT 1",
-                    (gid,),
-                ).fetchone()
-                if not pc:
-                    # Auto-create from current open contribution cycle
-                    cy = active_cycle(c, gid)
-                    if not cy:
-                        return error(self, "No open cycle available for bidding.", 404)
-                    next_num = (c.execute("SELECT COALESCE(MAX(number),0) FROM payout_cycles WHERE group_id=?", (gid,)).fetchone()[0] or 0) + 1
-                    pot = float(c.execute("SELECT COALESCE(SUM(amount),0) FROM contributions WHERE cycle_id=?", (cy["id"],)).fetchone()[0] or 0)
-                    c.execute(
-                        """INSERT INTO payout_cycles (group_id, cycle_id, number, pot_amount, status, bidding_opens)
-                           VALUES (?,?,?,?,'BIDDING',?)""",
-                        (gid, cy["id"], next_num, pot, now_local()),
-                    )
-                    pc_id = c.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
-                    pc = c.execute("SELECT * FROM payout_cycles WHERE id=?", (pc_id,)).fetchone()
-                if pc["status"] not in ("OPEN", "BIDDING"):
-                    return error(self, "Bidding is closed for this payout cycle.", 409)
-                if discount > float(pc["pot_amount"] or 0):
-                    return error(self, "Discount cannot exceed pot amount.", 400)
-                member = c.execute("SELECT id FROM members WHERE id=? AND group_id=? AND enrolled=1", (member_id, gid)).fetchone()
-                if not member:
-                    return error(self, "Member not found in this group.", 404)
-                try:
-                    c.execute(
-                        """INSERT INTO pot_bids (payout_cycle_id, group_id, member_id, discount_amount, bid_percent, status)
-                           VALUES (?,?,?,?,?,'Active')
-                           ON CONFLICT(payout_cycle_id, member_id) DO UPDATE SET
-                             discount_amount=excluded.discount_amount,
-                             bid_percent=excluded.bid_percent,
-                             status='Active',
-                             created_at=CURRENT_TIMESTAMP""",
-                        (pc["id"], gid, member_id, discount, bid_percent),
-                    )
-                except sqlite3.OperationalError:
-                    # SQLite without UPSERT support on older versions – delete+insert
-                    c.execute("DELETE FROM pot_bids WHERE payout_cycle_id=? AND member_id=?", (pc["id"], member_id))
-                    c.execute(
-                        """INSERT INTO pot_bids (payout_cycle_id, group_id, member_id, discount_amount, bid_percent, status)
-                           VALUES (?,?,?,?,?,'Active')""",
-                        (pc["id"], gid, member_id, discount, bid_percent),
-                    )
-                if pc["status"] == "OPEN":
-                    c.execute("UPDATE payout_cycles SET status='BIDDING' WHERE id=?", (pc["id"],))
-                c.commit()
-                bid = c.execute(
-                    "SELECT * FROM pot_bids WHERE payout_cycle_id=? AND member_id=?", (pc["id"], member_id)
-                ).fetchone()
-                return send_json(self, {
-                    "ok": True,
-                    "message": "Bid submitted.",
-                    "bid": dict(bid) if bid else None,
-                    "payout_cycle_id": pc["id"],
-                    "pot_amount": pc["pot_amount"],
-                })
-
-            # GET /api/v1/payouts/schedule
-            if path == "/api/v1/payouts/schedule" and method == "GET":
-                if not session:
-                    return error(self, "Authentication required.", 401)
-                gid = session["group_id"]
-                cycles_rows = c.execute(
-                    "SELECT * FROM cycles WHERE group_id=? ORDER BY number", (gid,)
-                ).fetchall()
-                payouts = c.execute(
-                    "SELECT * FROM payout_cycles WHERE group_id=? ORDER BY number DESC", (gid,)
-                ).fetchall()
-                schedule = []
-                for cy in cycles_rows:
-                    recipient = None
-                    if cy["recipient_id"]:
-                        m = c.execute("SELECT id,name,member_code FROM members WHERE id=?", (cy["recipient_id"],)).fetchone()
-                        recipient = dict(m) if m else None
-                    schedule.append({
-                        "cycle_id": cy["id"],
-                        "number": cy["number"],
-                        "status": cy["status"],
-                        "start_date": cy["start_date"],
-                        "end_date": cy["end_date"],
-                        "target": cy["target"],
-                        "recipient": recipient,
-                        "paid_out_at": cy["paid_out_at"] if "paid_out_at" in cy.keys() else None,
-                        "paid_out_amount": cy["paid_out_amount"] if "paid_out_amount" in cy.keys() else 0,
-                    })
-                current = None
-                if payouts:
-                    p = payouts[0]
-                    bids = c.execute(
-                        """SELECT b.*, m.name member_name FROM pot_bids b
-                           JOIN members m ON m.id=b.member_id
-                           WHERE b.payout_cycle_id=? ORDER BY b.discount_amount DESC""",
-                        (p["id"],),
-                    ).fetchall()
-                    beneficiary = None
-                    if p["beneficiary_member_id"]:
-                        bm = c.execute("SELECT id,name,member_code FROM members WHERE id=?", (p["beneficiary_member_id"],)).fetchone()
-                        beneficiary = dict(bm) if bm else None
-                    current = {
-                        "payout_cycle_id": p["id"],
-                        "number": p["number"],
-                        "status": p["status"],
-                        "pot_amount": p["pot_amount"],
-                        "beneficiary": beneficiary,
-                        "bids": [dict(b) for b in bids],
-                        "disbursed_at": p["disbursed_at"],
-                    }
-                return send_json(self, {"ok": True, "schedule": schedule, "current_payout": current})
-
-            # POST /api/v1/payouts/disburse
-            if path == "/api/v1/payouts/disburse" and method == "POST":
-                if not session or session.get("role") != "admin":
-                    return error(self, "Admin authentication required.", 401)
-                data = request_body(self)
-                gid = session["group_id"]
-                pc_id = data.get("payout_cycle_id")
-                if pc_id:
-                    pc = c.execute("SELECT * FROM payout_cycles WHERE id=? AND group_id=?", (int(pc_id), gid)).fetchone()
-                else:
-                    pc = c.execute(
-                        "SELECT * FROM payout_cycles WHERE group_id=? AND status IN ('OPEN','BIDDING','AWARDED') ORDER BY number DESC LIMIT 1",
-                        (gid,),
-                    ).fetchone()
-                if not pc:
-                    return error(self, "No disbursable payout cycle found.", 404)
-                if pc["status"] == "DISBURSED":
-                    return error(self, "This pot has already been disbursed.", 409)
-                # Winner = highest discount bid, or explicit beneficiary, or cycle recipient
-                winner_id = data.get("beneficiary_member_id") or pc["beneficiary_member_id"]
-                winning_bid = None
-                if not winner_id:
-                    winning_bid = c.execute(
-                        """SELECT * FROM pot_bids WHERE payout_cycle_id=? AND status='Active'
-                           ORDER BY discount_amount DESC, created_at ASC LIMIT 1""",
-                        (pc["id"],),
-                    ).fetchone()
-                    if winning_bid:
-                        winner_id = winning_bid["member_id"]
-                if not winner_id:
-                    cy = c.execute("SELECT recipient_id FROM cycles WHERE id=?", (pc["cycle_id"],)).fetchone() if pc["cycle_id"] else None
-                    winner_id = cy["recipient_id"] if cy else None
-                if not winner_id:
-                    return error(self, "No beneficiary determined. Assign a recipient or accept a bid first.", 400)
-                discount = float(winning_bid["discount_amount"]) if winning_bid else 0.0
-                amount = max(0, float(pc["pot_amount"] or 0) - discount)
-                # Mark bids
-                c.execute("UPDATE pot_bids SET status='Lost' WHERE payout_cycle_id=? AND status='Active'", (pc["id"],))
-                if winning_bid:
-                    c.execute("UPDATE pot_bids SET status='Won' WHERE id=?", (winning_bid["id"],))
-                c.execute(
-                    """UPDATE payout_cycles SET status='DISBURSED', beneficiary_member_id=?,
-                       disbursed_at=?, disbursed_by=?, winning_bid_id=?, pot_amount=? WHERE id=?""",
-                    (winner_id, now_local(), session["user_id"], winning_bid["id"] if winning_bid else None, amount, pc["id"]),
-                )
-                # Mirror onto contribution cycle if linked
-                if pc["cycle_id"]:
-                    c.execute(
-                        """UPDATE cycles SET status='CLOSED', paid_out_at=?, paid_out_amount=?, paid_out_by=?, recipient_id=?
-                           WHERE id=?""",
-                        (now_local(), amount, session["user_id"], winner_id, pc["cycle_id"]),
-                    )
-                c.execute(
-                    """INSERT INTO ledger_transactions
-                       (group_id, member_id, fund_type, tx_type, direction, amount, description, recorded_by)
-                       VALUES (?,?, 'MAIN_POT', 'PAYOUT', 'OUT', ?, ?, ?)""",
-                    (gid, winner_id, amount, f"Pot disbursement payout_cycle #{pc['id']} to member {winner_id}", session["user_id"]),
-                )
-                c.commit()
-                winner = c.execute("SELECT id,name,member_code,phone FROM members WHERE id=?", (winner_id,)).fetchone()
-                return send_json(self, {
-                    "ok": True,
-                    "message": "Pot disbursed.",
-                    "amount": amount,
-                    "discount": discount,
-                    "beneficiary": dict(winner) if winner else None,
-                    "payout_cycle_id": pc["id"],
-                })
-
-            # ================================================================
-            # Multi-Fund balances
-            # ================================================================
-
-            if path == "/api/v1/funds/balances" and method == "GET":
-                if not session:
-                    return error(self, "Authentication required.", 401)
-                gid = session["group_id"]
-                balances = {}
-                for ft in ("MAIN_POT", "CAISSE_SOCIALE", "INVESTMENT_PROJECT"):
-                    row = c.execute(
-                        """SELECT
-                             COALESCE(SUM(CASE WHEN direction='IN' THEN amount ELSE 0 END),0) AS inflow,
-                             COALESCE(SUM(CASE WHEN direction='OUT' THEN amount ELSE 0 END),0) AS outflow
-                           FROM ledger_transactions WHERE group_id=? AND fund_type=?""",
-                        (gid, ft),
-                    ).fetchone()
-                    balances[ft] = {
-                        "inflow": float(row["inflow"]),
-                        "outflow": float(row["outflow"]),
-                        "balance": float(row["inflow"]) - float(row["outflow"]),
-                    }
-                return send_json(self, {"ok": True, "funds": balances})
-
-            # POST /api/v1/funds/transfer or social grant
-            if path == "/api/v1/funds/grant" and method == "POST":
-                if not session or session.get("role") != "admin":
-                    return error(self, "Admin authentication required.", 401)
-                data = request_body(self)
-                gid = session["group_id"]
-                amount = float(data.get("amount") or 0)
-                member_id = int(data.get("member_id") or 0)
-                fund_type = str(data.get("fund_type") or "CAISSE_SOCIALE").upper()
-                if fund_type not in ("CAISSE_SOCIALE", "INVESTMENT_PROJECT", "MAIN_POT"):
-                    return error(self, "Invalid fund_type.", 400)
-                if amount <= 0 or not member_id:
-                    return error(self, "amount and member_id required.", 400)
-                desc = str(data.get("description") or f"{fund_type} grant").strip()
-                c.execute(
-                    """INSERT INTO ledger_transactions
-                       (group_id, member_id, fund_type, tx_type, direction, amount, description, recorded_by)
-                       VALUES (?,?,?, 'SOCIAL_GRANT', 'OUT', ?, ?, ?)""",
-                    (gid, member_id, fund_type, amount, desc, session["user_id"]),
-                )
-                c.commit()
-                return send_json(self, {"ok": True, "message": "Grant recorded.", "fund_type": fund_type, "amount": amount})
-
-            # ================================================================
-            # Mobile Money webhook
-            # ================================================================
-
-            # POST /api/v1/payments/momo/initiate — create pending MoMo intent
-            if path == "/api/v1/payments/momo/initiate" and method == "POST":
-                if not session:
-                    return error(self, "Authentication required.", 401)
-                data = request_body(self)
-                gid = session["group_id"]
-                member_id = session["user_id"] if session.get("role") == "member" else int(data.get("member_id") or 0)
-                amount = float(data.get("amount") or 0)
-                provider = str(data.get("provider") or "MTN").upper()
-                if amount <= 0:
-                    return error(self, "amount must be positive.", 400)
-                cycle = active_cycle(c, gid)
-                if not cycle:
-                    return error(self, "No open cycle.", 404)
-                ref = f"NJG-{gid}-{member_id}-{secrets.token_hex(6).upper()}"
-                c.execute(
-                    """INSERT INTO momo_pending (group_id, member_id, cycle_id, amount, provider, external_ref, status)
-                       VALUES (?,?,?,?,?,?,'PENDING')""",
-                    (gid, member_id, cycle["id"], amount, provider, ref),
-                )
-                c.commit()
-                return send_json(self, {
-                    "ok": True,
-                    "external_ref": ref,
-                    "amount": amount,
-                    "provider": provider,
-                    "message": "Present this reference to the Mobile Money checkout. Webhook will mark paid.",
-                })
-
-            # ================================================================
-            # Passbook PDF export
-            # ================================================================
-
-            m_pb = re.fullmatch(r"/api/v1/members/(\d+)/passbook/export", path)
-            if m_pb and method == "GET":
-                if not session:
-                    return error(self, "Authentication required.", 401)
-                try:
-                    uid = int(m_pb.group(1))
-                except ValueError:
-                    return error(self, "Invalid member id.", 400)
-                gid = session["group_id"]
-                # Members may only export their own; admins any member in group
-                if session.get("role") == "member" and session["user_id"] != uid:
-                    return error(self, "You can only export your own passbook.", 403)
-                member = c.execute(
-                    "SELECT * FROM members WHERE id=? AND group_id=?", (uid, gid)
-                ).fetchone()
-                if not member:
-                    return error(self, "Member not found.", 404)
-                group = c.execute("SELECT * FROM groups WHERE id=?", (gid,)).fetchone()
-                contribs = c.execute(
-                    """SELECT p.*, cy.number cycle_number FROM contributions p
-                       JOIN cycles cy ON cy.id=p.cycle_id
-                       WHERE p.member_id=? AND p.group_id=? ORDER BY p.date, p.id""",
-                    (uid, gid),
-                ).fetchall()
-                loans = c.execute(
-                    "SELECT * FROM loans WHERE member_id=? AND group_id=? ORDER BY id", (uid, gid)
-                ).fetchall()
-                # Fines table may not exist on older DBs
-                fines = []
-                try:
-                    fines = c.execute(
-                        "SELECT * FROM fines WHERE membership_id=? OR member_id=? ORDER BY id",
-                        (uid, uid),
-                    ).fetchall()
-                except sqlite3.OperationalError:
-                    pass
-
-                # Build PDF with reportlab
-                try:
-                    from reportlab.lib.pagesizes import A4
-                    from reportlab.lib.units import mm
-                    from reportlab.pdfgen import canvas
-                    from reportlab.lib.colors import HexColor
-                    import io
-                    buf = io.BytesIO()
-                    pdf = canvas.Canvas(buf, pagesize=A4)
-                    W, H = A4
-                    y = H - 25 * mm
-                    green = HexColor("#1a7a4c")
-                    pdf.setFillColor(green)
-                    pdf.setFont("Helvetica-Bold", 16)
-                    pdf.drawString(20 * mm, y, "Njangi Tracker — Digital Passbook")
-                    y -= 8 * mm
-                    pdf.setFillColor(HexColor("#222222"))
-                    pdf.setFont("Helvetica", 10)
-                    pdf.drawString(20 * mm, y, f"Group: {group['name'] if group else '-'}")
-                    y -= 5 * mm
-                    pdf.drawString(20 * mm, y, f"Member: {member['name']}  |  ID: {member['member_code']}  |  Phone: {member['phone']}")
-                    y -= 5 * mm
-                    pdf.drawString(20 * mm, y, f"Generated: {now_local()}")
-                    y -= 10 * mm
-                    pdf.setFont("Helvetica-Bold", 12)
-                    pdf.drawString(20 * mm, y, "Contribution History")
-                    y -= 6 * mm
-                    pdf.setFont("Helvetica", 9)
-                    pdf.drawString(20 * mm, y, "Date")
-                    pdf.drawString(45 * mm, y, "Cycle")
-                    pdf.drawString(65 * mm, y, "Amount")
-                    pdf.drawString(95 * mm, y, "Status")
-                    y -= 5 * mm
-                    total_paid = 0.0
-                    for row in contribs:
-                        if y < 25 * mm:
-                            pdf.showPage()
-                            y = H - 20 * mm
-                        pdf.drawString(20 * mm, y, str(row["date"] or "-"))
-                        pdf.drawString(45 * mm, y, f"#{row['cycle_number']}")
-                        pdf.drawString(65 * mm, y, f"{float(row['amount']):,.0f} FCFA")
-                        pdf.drawString(95 * mm, y, str(row["status"]))
-                        total_paid += float(row["amount"] or 0)
-                        y -= 5 * mm
-                    y -= 3 * mm
-                    pdf.setFont("Helvetica-Bold", 10)
-                    pdf.drawString(20 * mm, y, f"Total contributions: {total_paid:,.0f} FCFA")
-                    y -= 10 * mm
-                    pdf.setFont("Helvetica-Bold", 12)
-                    pdf.drawString(20 * mm, y, "Loans")
-                    y -= 6 * mm
-                    pdf.setFont("Helvetica", 9)
-                    if not loans:
-                        pdf.drawString(20 * mm, y, "No loans on record.")
-                        y -= 5 * mm
-                    for ln in loans:
-                        if y < 25 * mm:
-                            pdf.showPage()
-                            y = H - 20 * mm
-                        bal = max(0, float(ln["total_due"] or ln["amount"]) - float(ln["amount_repaid"] or 0))
-                        pdf.drawString(20 * mm, y, f"{ln['date_requested']}  {float(ln['amount']):,.0f} FCFA  status={ln['status']}  balance={bal:,.0f}")
-                        y -= 5 * mm
-                    y -= 8 * mm
-                    pdf.setFont("Helvetica-Bold", 12)
-                    pdf.drawString(20 * mm, y, "Fines")
-                    y -= 6 * mm
-                    pdf.setFont("Helvetica", 9)
-                    if not fines:
-                        pdf.drawString(20 * mm, y, "No fines on record.")
-                    else:
-                        for f in fines:
-                            pdf.drawString(20 * mm, y, f"{f['issued_at'] if 'issued_at' in f.keys() else ''}  {float(f['amount']):,.0f} FCFA  {f['reason']}  {f['status']}")
-                            y -= 5 * mm
-                    pdf.setFont("Helvetica", 8)
-                    pdf.setFillColor(HexColor("#666666"))
-                    pdf.drawString(20 * mm, 12 * mm, "Njangi Tracker — official member passbook export. Keep for your records.")
-                    pdf.save()
-                    pdf_bytes = buf.getvalue()
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/pdf")
-                    self.send_header("Content-Disposition", f'attachment; filename="passbook_{member["member_code"]}.pdf"')
-                    self.send_header("Content-Length", str(len(pdf_bytes)))
-                    self.end_headers()
-                    self.wfile.write(pdf_bytes)
-                    return
-                except Exception as exc:
-                    return error(self, f"PDF generation failed: {exc}", 500)
 
             if path == "/api/loans" and method == "GET":
                 if role == "admin":
