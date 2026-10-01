@@ -1,0 +1,20 @@
+# Gmail SMTP settings for password reset emails
+NJANGI_SMTP_HOST=smtp.gmail.com
+NJANGI_SMTP_PORT=587
+NJANGI_SMTP_USERNAME=stephaniekemegne7@gmail.com
+NJANGI_SMTP_PASSWORD=bpmqfqnmvfvneidb
+NJANGI_SMTP_FROM=stephaniekemegne7@gmail.com
+
+# Keep 0 in production. Use 1 only for local testing without email.
+NJANGI_DEV_SHOW_PIN=0
+
+# Optional production settings
+NJANGI_SESSION_DAYS=7
+NJANGI_RESET_MINUTES=10
+NJANGI_SMTP_TIMEOUT=20
+# NJANGI_DB_PATH=/var/data/njangi_app.db
+
+# Loan approval policy
+NJANGI_LOAN_MIN_RELIABILITY=70
+NJANGI_LOAN_MIN_CYCLES=1
+
