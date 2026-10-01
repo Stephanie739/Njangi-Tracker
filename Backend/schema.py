@@ -1,465 +1,324 @@
+#!/usr/bin/env python3
 """
-Njangi Tracker — SQLite Schema
-Step 1: Updated schema supporting phone numbers, 4-digit PIN hashes (pin_hash),
-group memberships, unique njangi_code, multi-fund support, and RBAC roles.
+Njangi Tracker — SQLite Schema Definition Module
+================================================
 
-This module only defines table structures. Data access lives in database.py /
-server.py. Safe to call create_schema() on every app start.
+Person 1 — Task 2 (design and create SQLite database schema)
+
+This module contains **only** the table definitions and the helper that
+creates them. Nothing here reads or writes actual business data —
+that responsibility belongs to Task 3 (persistance.py / database.py).
+
+Design Goals
+------------
+1. Multi-group isolation  
+   Every table that holds member-specific data carries a group_id
+   (directly or via foreign key). This makes Task 5 (group data
+   separation) trivial: any query can simply filter
+   WHERE group_id = ? and will never see another group's rows.
+
+2. Composite primary keys where needed  
+   A member_id is only unique *inside* a group. Therefore the member
+   table uses PRIMARY KEY (member_id, group_id). The same pattern is
+   used for loans.
+
+3. Referential integrity  
+   Foreign-key constraints are declared and PRAGMA foreign_keys = ON
+   is enabled so that deleting a group cascades cleanly and orphan
+   rows cannot be inserted.
+
+4. Idempotent creation  
+   All statements use CREATE TABLE IF NOT EXISTS so the function can
+   be called safely on every application start.
+
+Tables Overview
+---------------
+njangi_group
+    Root entity. Holds the group name, standard contribution amount
+    and frequency (in days).
+
+member
+    Participants. Composite PK (member_id, group_id). Tracks join date
+    and optional queue position for the rotation order.
+
+cycle
+    One contribution round. Identified by (group_id, cycle_number).
+    Records who the recipient is and whether the cycle is closed.
+
+contribution
+    Individual payment obligations / receipts linked to a cycle and
+    a member. Supports partial payments via amount_paid vs
+    amount_expected.
+
+loan
+    Money borrowed from the group pool. Composite PK (loan_id, group_id).
+    Tracks interest, status and cumulative repayments.
+
+Author: Njangi Tracker Development Team
+Version: 2.1.0 (Enhanced documentation, type hints, constants)
+Last Updated: 2026-09-28
 """
 
+from __future__ import annotations
+
+import logging
 import sqlite3
 from pathlib import Path
+from typing import Optional, Union
 
-# Default path used by the py/ modules. The main web server (server.py) uses
-# njangi_app.db; keep this separate so the two layers can coexist during migration.
-DB_PATH = str(Path(__file__).resolve().parent.parent / "njangi.db")
+# ---------------------------------------------------------------------------
+# Module logger
+# ---------------------------------------------------------------------------
+logger = logging.getLogger("njangi.schema")
+
+# ---------------------------------------------------------------------------
+# Configuration Constants
+# ---------------------------------------------------------------------------
+
+# Default database file name (can be overridden by callers)
+DB_PATH: str = "njangi.db"
+
+# Default contribution frequency in days (30 ≈ monthly)
+DEFAULT_FREQUENCY_DAYS: int = 30
+
+# Default interest rate applied to new loans (percent)
+DEFAULT_INTEREST_RATE: float = 5.0
+
+# Canonical status strings used across the application
+CONTRIBUTION_STATUS_PENDING = "Pending"
+CONTRIBUTION_STATUS_PARTIAL = "Partial"
+CONTRIBUTION_STATUS_PAID = "Paid"
+LOAN_STATUS_REQUESTED = "Requested"
+LOAN_STATUS_APPROVED = "Approved"
+LOAN_STATUS_ACTIVE = "Active"
+LOAN_STATUS_REPAID = "Repaid"
+LOAN_STATUS_REJECTED = "Rejected"
 
 
-def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
-    """Return a connection with foreign keys enabled."""
-    conn = sqlite3.connect(db_path, timeout=10)
-    conn.row_factory = sqlite3.Row
+# =============================================================================
+# Connection Helper
+# =============================================================================
+
+def get_connection(db_path: Union[str, Path] = DB_PATH) -> sqlite3.Connection:
+    """
+    Open a SQLite connection with foreign-key enforcement enabled.
+
+    Parameters
+    ----------
+    db_path : str or Path, optional
+        Filesystem path to the SQLite database file.
+        Defaults to the module-level DB_PATH constant.
+
+    Returns
+    -------
+    sqlite3.Connection
+        An open connection with row_factory left at the default
+        (callers may set it to sqlite3.Row if they prefer).
+
+    Notes
+    -----
+    - PRAGMA foreign_keys = ON is executed immediately so that all
+      subsequent statements on this connection respect constraints.
+    - The connection is *not* closed by this function; the caller is
+      responsible for closing it (preferably via a context manager).
+    """
+    path_str = str(db_path)
+    logger.debug("Opening SQLite connection to %s", path_str)
+    conn = sqlite3.connect(path_str)
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA busy_timeout = 10000")
+    # Optional performance pragmas that are safe for a small multi-user app
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 
+# =============================================================================
+# Schema Creation
+# =============================================================================
+
 def create_schema(conn: sqlite3.Connection) -> None:
     """
-    Create all tables if they do not already exist.
+    Creates all tables if they don't already exist. Safe to call every
+    time the app starts.
 
-    Design notes
+    Table design notes:
+      - Every table (member, cycle, contribution, loan) carries group_id,
+        directly or indirectly — this is what makes Task 5 (group data
+        separation) possible: any query can filter WHERE group_id = ?
+        and never see another group's data.
+      - member's primary key is (member_id, group_id) rather than just
+        member_id, since member_id is only assigned uniquely *within*
+        a group (see NjangiGroup._next_member_id in models.py).
+      - cycle uses a surrogate cycle_pk so that contributions can
+        reference a single integer; uniqueness of (group_id, cycle_number)
+        is still enforced by a UNIQUE constraint.
+      - loan follows the same composite-key pattern as member.
+
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        An open connection (preferably obtained from get_connection()).
+
+    Side Effects
     ------------
-    - groups.njangi_code  : human-readable public code (e.g. NJG-X7K9P)
-    - groups.uuid         : system UUID for global ledger separation
-    - members.pin_hash    : salted hash of the 4-digit PIN
-    - members.phone       : primary login identifier for members
-    - group_memberships   : supports multi-group membership for one user profile
-    - roles               : President / Secretary / Treasurer / Auditor / Member
-    - funds               : Main Pot, Social/Trouble Fund, Investment Fund
+    - Executes a multi-statement script that creates five tables.
+    - Commits the transaction so the schema is durable.
+    - Logs a success message at INFO level.
     """
+    logger.info("Creating / verifying Njangi database schema …")
+
     conn.executescript(
         """
-        -- ============================================================
-        -- GROUPS
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS groups (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            name                  TEXT NOT NULL,
-            njangi_code           TEXT NOT NULL UNIQUE,          -- e.g. NJG-X7K9P
-            uuid                  TEXT NOT NULL UNIQUE,          -- system UUID
-            contribution_amount   REAL NOT NULL DEFAULT 0,
-            frequency             TEXT NOT NULL DEFAULT 'Monthly',
-            frequency_days        INTEGER NOT NULL DEFAULT 30,
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        -- ================================================================
+        -- njangi_group : root entity for each savings circle
+        -- ================================================================
+        CREATE TABLE IF NOT EXISTS njangi_group (
+            group_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_name          TEXT NOT NULL UNIQUE,
+            contribution_amount REAL NOT NULL,
+            frequency_days      INTEGER NOT NULL DEFAULT 30
+            -- frequency_days stores the interval between cycles
+            -- (7 = weekly, 14 = bi-weekly, 30 ≈ monthly, etc.)
         );
 
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_groups_njangi_code
-            ON groups(njangi_code);
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_groups_uuid
-            ON groups(uuid);
-
-        -- ============================================================
-        -- USERS (global profile — one person can belong to many groups)
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS users (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            phone                 TEXT NOT NULL UNIQUE,          -- primary login key
-            email                 TEXT UNIQUE,
-            name                  TEXT NOT NULL,
-            pin_hash              TEXT,                          -- 4-digit PIN (hashed)
-            password_hash         TEXT,                          -- optional email/password
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at            TEXT
+        -- ================================================================
+        -- member : participants belonging to a group
+        -- Composite primary key because member_id is local to the group
+        -- ================================================================
+        CREATE TABLE IF NOT EXISTS member (
+            member_id      INTEGER NOT NULL,
+            group_id       INTEGER NOT NULL,
+            name           TEXT NOT NULL,
+            phone_number   TEXT,
+            join_date      TEXT NOT NULL,
+            queue_position INTEGER,  -- NULL if not currently in rotation queue
+            PRIMARY KEY (member_id, group_id),
+            FOREIGN KEY (group_id) REFERENCES njangi_group(group_id) ON DELETE CASCADE
         );
 
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_users_phone ON users(phone);
+        -- Index to speed up "list all members of a group" queries
+        CREATE INDEX IF NOT EXISTS idx_member_group
+            ON member(group_id);
 
-        -- ============================================================
-        -- GROUP MEMBERSHIPS (many-to-many: user ↔ group + role + shares)
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS group_memberships (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id               INTEGER NOT NULL,
-            group_id              INTEGER NOT NULL,
-            role                  TEXT NOT NULL DEFAULT 'Member'
-                                  CHECK (role IN (
-                                      'President', 'Secretary', 'Treasurer',
-                                      'Auditor', 'Member'
-                                  )),
-            share_count           INTEGER NOT NULL DEFAULT 1,
-            member_code           TEXT,                          -- e.g. MBR-000042
-            rotation_position     INTEGER NOT NULL DEFAULT 0,
-            enrolled              INTEGER NOT NULL DEFAULT 1,     -- 0/1
-            status                TEXT NOT NULL DEFAULT 'Active'
-                                  CHECK (status IN (
-                                      'Pending', 'Active', 'Suspended', 'Left'
-                                  )),
-            join_date             TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id)  REFERENCES users(id)  ON DELETE CASCADE,
-            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-            UNIQUE (user_id, group_id)
+        -- ================================================================
+        -- cycle : one contribution round inside a group
+        -- ================================================================
+        CREATE TABLE IF NOT EXISTS cycle (
+            cycle_pk       INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id       INTEGER NOT NULL,
+            cycle_number   INTEGER NOT NULL,
+            recipient_id   INTEGER NOT NULL,
+            due_date       TEXT NOT NULL,
+            closed         INTEGER NOT NULL DEFAULT 0,  -- 0/1 boolean
+            UNIQUE (group_id, cycle_number),
+            FOREIGN KEY (group_id) REFERENCES njangi_group(group_id) ON DELETE CASCADE
         );
 
-        CREATE INDEX IF NOT EXISTS idx_memberships_group
-            ON group_memberships(group_id);
-        CREATE INDEX IF NOT EXISTS idx_memberships_user
-            ON group_memberships(user_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_memberships_member_code
-            ON group_memberships(member_code) WHERE member_code IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_cycle_group
+            ON cycle(group_id);
 
-        -- ============================================================
-        -- FUNDS (multi-fund accounting inside one group)
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS funds (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id              INTEGER NOT NULL,
-            name                  TEXT NOT NULL,                 -- Main, Social, Investment
-            fund_type             TEXT NOT NULL
-                                  CHECK (fund_type IN (
-                                      'Main', 'Social', 'Investment'
-                                  )),
-            balance               REAL NOT NULL DEFAULT 0,
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-            UNIQUE (group_id, fund_type)
+        -- ================================================================
+        -- contribution : individual payment records linked to a cycle
+        -- ================================================================
+        CREATE TABLE IF NOT EXISTS contribution (
+            contribution_pk  INTEGER PRIMARY KEY AUTOINCREMENT,
+            cycle_pk         INTEGER NOT NULL,
+            member_id        INTEGER NOT NULL,
+            group_id         INTEGER NOT NULL,
+            amount_expected  REAL NOT NULL,
+            amount_paid      REAL NOT NULL DEFAULT 0,
+            date_paid        TEXT,
+            status           TEXT NOT NULL DEFAULT 'Pending',
+            FOREIGN KEY (cycle_pk) REFERENCES cycle(cycle_pk) ON DELETE CASCADE,
+            FOREIGN KEY (member_id, group_id) REFERENCES member(member_id, group_id)
         );
 
-        -- ============================================================
-        -- CYCLES
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS cycles (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id              INTEGER NOT NULL,
-            number                INTEGER NOT NULL,
-            target                REAL NOT NULL DEFAULT 0,
-            start_date            TEXT NOT NULL,
-            end_date              TEXT NOT NULL,
-            recipient_membership_id INTEGER,                     -- who receives the pot
-            status                TEXT NOT NULL DEFAULT 'OPEN'
-                                  CHECK (status IN ('OPEN', 'CLOSED', 'PAID_OUT')),
-            paid_out_at           TEXT,
-            paid_out_amount       REAL NOT NULL DEFAULT 0,
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-            FOREIGN KEY (recipient_membership_id)
-                REFERENCES group_memberships(id),
-            UNIQUE (group_id, number)
+        CREATE INDEX IF NOT EXISTS idx_contribution_cycle
+            ON contribution(cycle_pk);
+        CREATE INDEX IF NOT EXISTS idx_contribution_member
+            ON contribution(member_id, group_id);
+
+        -- ================================================================
+        -- loan : money borrowed from the group pool
+        -- ================================================================
+        CREATE TABLE IF NOT EXISTS loan (
+            loan_id          INTEGER NOT NULL,
+            group_id         INTEGER NOT NULL,
+            member_id        INTEGER NOT NULL,
+            amount           REAL NOT NULL,
+            interest_rate    REAL NOT NULL DEFAULT 5.0,
+            status           TEXT NOT NULL DEFAULT 'Requested',
+            date_requested   TEXT NOT NULL,
+            date_approved    TEXT,
+            amount_repaid    REAL NOT NULL DEFAULT 0,
+            PRIMARY KEY (loan_id, group_id),
+            FOREIGN KEY (group_id) REFERENCES njangi_group(group_id) ON DELETE CASCADE,
+            FOREIGN KEY (member_id, group_id) REFERENCES member(member_id, group_id)
         );
 
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_one_open_cycle
-            ON cycles(group_id) WHERE status = 'OPEN';
-
-        -- ============================================================
-        -- CONTRIBUTIONS
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS contributions (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id              INTEGER NOT NULL,
-            membership_id         INTEGER NOT NULL,
-            cycle_id              INTEGER NOT NULL,
-            fund_id               INTEGER,                       -- which pot received it
-            amount                REAL NOT NULL DEFAULT 0,
-            amount_expected       REAL NOT NULL DEFAULT 0,
-            date_paid             TEXT,
-            status                TEXT NOT NULL DEFAULT 'Pending'
-                                  CHECK (status IN (
-                                      'Pending', 'Partial', 'Paid', 'Late'
-                                  )),
-            payment_method        TEXT DEFAULT 'Cash'
-                                  CHECK (payment_method IN (
-                                      'Cash', 'MTN_MoMo', 'Orange_Money', 'Bank'
-                                  )),
-            recorded_by           INTEGER,                       -- admin/treasurer user_id
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (group_id)      REFERENCES groups(id),
-            FOREIGN KEY (membership_id) REFERENCES group_memberships(id),
-            FOREIGN KEY (cycle_id)      REFERENCES cycles(id) ON DELETE CASCADE,
-            FOREIGN KEY (fund_id)       REFERENCES funds(id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_contributions_cycle
-            ON contributions(cycle_id);
-        CREATE INDEX IF NOT EXISTS idx_contributions_membership
-            ON contributions(membership_id);
-
-        -- ============================================================
-        -- LOANS
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS loans (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id              INTEGER NOT NULL,
-            membership_id         INTEGER,                       -- py/ multi-group path
-            member_id             INTEGER,                       -- server.py path (members.id)
-            amount                REAL NOT NULL,
-            interest_rate         REAL NOT NULL DEFAULT 5.0,
-            total_due             REAL NOT NULL DEFAULT 0,
-            amount_repaid         REAL NOT NULL DEFAULT 0,
-            reason                TEXT,
-            payback_months        INTEGER NOT NULL DEFAULT 1,     -- requested payback period
-            status                TEXT NOT NULL DEFAULT 'Requested'
-                                  CHECK (status IN (
-                                      'Requested', 'Pending', 'PENDING',
-                                      'Verified', 'Approved', 'APPROVED',
-                                      'Disbursed', 'Active', 'ACTIVE',
-                                      'Repaid', 'COMPLETED', 'Rejected', 'REJECTED',
-                                      'Defaulted'
-                                  )),
-            date_requested        TEXT NOT NULL,
-            date_verified         TEXT,
-            date_approved         TEXT,
-            date_disbursed        TEXT,
-            verified_by           INTEGER,
-            approved_by           INTEGER,
-            disbursed_by          INTEGER,
-            required_guarantors   INTEGER NOT NULL DEFAULT 1,     -- 1–3
-            FOREIGN KEY (group_id) REFERENCES groups(id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_loans_group ON loans(group_id);
-        CREATE INDEX IF NOT EXISTS idx_loans_membership ON loans(membership_id);
-        CREATE INDEX IF NOT EXISTS idx_loans_member ON loans(member_id);
-
-        -- ============================================================
-        -- GUARANTORS (loan_guarantors)
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS loan_guarantors (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            loan_id               INTEGER NOT NULL,
-            guarantor_membership_id INTEGER,                     -- py/ path
-            guarantor_member_id   INTEGER,                       -- server.py members.id
-            status                TEXT NOT NULL DEFAULT 'Pending'
-                                  CHECK (status IN (
-                                      'Pending', 'Accepted', 'Rejected'
-                                  )),
-            signed_at             TEXT,
-            note                  TEXT,
-            FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE CASCADE,
-            UNIQUE (loan_id, guarantor_member_id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_guarantors_loan ON loan_guarantors(loan_id);
-
-        -- ============================================================
-        -- LOAN PAYMENTS
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS loan_payments (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            loan_id               INTEGER NOT NULL,
-            group_id              INTEGER NOT NULL,
-            amount                REAL NOT NULL,
-            payment_date          TEXT NOT NULL,
-            recorded_by           INTEGER,
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (loan_id)  REFERENCES loans(id) ON DELETE CASCADE,
-            FOREIGN KEY (group_id) REFERENCES groups(id)
-        );
-
-        -- ============================================================
-        -- LEDGER TRANSACTIONS (immutable financial audit trail)
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS ledger_transactions (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id              INTEGER NOT NULL,
-            fund_id               INTEGER,
-            fund_type             TEXT NOT NULL DEFAULT 'MAIN_POT'
-                                  CHECK (fund_type IN (
-                                      'MAIN_POT', 'CAISSE_SOCIALE', 'INVESTMENT_PROJECT'
-                                  )),
-            member_id             INTEGER,
-            loan_id               INTEGER,
-            tx_type               TEXT NOT NULL
-                                  CHECK (tx_type IN (
-                                      'CONTRIBUTION', 'PAYOUT', 'LOAN_DISBURSE',
-                                      'LOAN_REPAY', 'FINE', 'FEE', 'ADJUSTMENT',
-                                      'SOCIAL_GRANT', 'INVESTMENT', 'MOMO_PAYMENT'
-                                  )),
-            direction             TEXT NOT NULL
-                                  CHECK (direction IN ('IN', 'OUT')),
-            amount                REAL NOT NULL,
-            balance_after         REAL,
-            reference             TEXT,
-            description           TEXT,
-            recorded_by           INTEGER,
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (group_id) REFERENCES groups(id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_ledger_group ON ledger_transactions(group_id);
-        CREATE INDEX IF NOT EXISTS idx_ledger_member ON ledger_transactions(member_id);
-        CREATE INDEX IF NOT EXISTS idx_ledger_loan ON ledger_transactions(loan_id);
-        CREATE INDEX IF NOT EXISTS idx_ledger_type ON ledger_transactions(tx_type);
-
-        -- ============================================================
-        -- PAYOUT CYCLES & POT BIDS (rotation / bidding engine)
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS payout_cycles (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id              INTEGER NOT NULL,
-            cycle_id              INTEGER,                       -- link to cycles table
-            number                INTEGER NOT NULL,
-            beneficiary_member_id INTEGER,
-            pot_amount            REAL NOT NULL DEFAULT 0,
-            status                TEXT NOT NULL DEFAULT 'OPEN'
-                                  CHECK (status IN ('OPEN', 'BIDDING', 'AWARDED', 'DISBURSED', 'CLOSED')),
-            bidding_opens         TEXT,
-            bidding_closes        TEXT,
-            awarded_at            TEXT,
-            disbursed_at          TEXT,
-            disbursed_by          INTEGER,
-            winning_bid_id        INTEGER,
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_payout_cycles_group ON payout_cycles(group_id);
-
-        CREATE TABLE IF NOT EXISTS pot_bids (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            payout_cycle_id       INTEGER NOT NULL,
-            group_id              INTEGER NOT NULL,
-            member_id             INTEGER NOT NULL,
-            discount_amount       REAL NOT NULL DEFAULT 0,       -- how much they discount from full pot
-            bid_percent           REAL NOT NULL DEFAULT 0,       -- optional % discount
-            status                TEXT NOT NULL DEFAULT 'Active'
-                                  CHECK (status IN ('Active', 'Withdrawn', 'Won', 'Lost')),
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (payout_cycle_id) REFERENCES payout_cycles(id) ON DELETE CASCADE,
-            FOREIGN KEY (group_id) REFERENCES groups(id),
-            UNIQUE (payout_cycle_id, member_id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_pot_bids_cycle ON pot_bids(payout_cycle_id);
-
-        -- ============================================================
-        -- ATTENDANCE & FINES
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS attendance (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id              INTEGER NOT NULL,
-            cycle_id              INTEGER,
-            membership_id         INTEGER NOT NULL,
-            meeting_date          TEXT NOT NULL,
-            status                TEXT NOT NULL DEFAULT 'Present'
-                                  CHECK (status IN (
-                                      'Present', 'Late', 'Absent', 'Excused'
-                                  )),
-            recorded_by           INTEGER,
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (group_id)      REFERENCES groups(id),
-            FOREIGN KEY (membership_id) REFERENCES group_memberships(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS fines (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id              INTEGER NOT NULL,
-            membership_id         INTEGER NOT NULL,
-            amount                REAL NOT NULL,
-            reason                TEXT NOT NULL,                 -- Late, Absent, LateContribution
-            status                TEXT NOT NULL DEFAULT 'Unpaid'
-                                  CHECK (status IN ('Unpaid', 'Paid', 'Waived')),
-            issued_by             INTEGER,
-            issued_at             TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            paid_at               TEXT,
-            FOREIGN KEY (group_id)      REFERENCES groups(id),
-            FOREIGN KEY (membership_id) REFERENCES group_memberships(id)
-        );
-
-        -- ============================================================
-        -- SESSIONS & SECURITY
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS sessions (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            token_hash            TEXT NOT NULL UNIQUE,
-            user_id               INTEGER NOT NULL,
-            membership_id         INTEGER,                       -- active group context
-            role                  TEXT NOT NULL,
-            group_id              INTEGER,
-            created_at            REAL NOT NULL,
-            expires_at            REAL NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash);
-
-        CREATE TABLE IF NOT EXISTS login_throttle (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_key           TEXT NOT NULL UNIQUE,          -- phone or email
-            attempts              INTEGER NOT NULL DEFAULT 0,
-            locked_until          REAL NOT NULL DEFAULT 0,
-            updated_at            REAL NOT NULL DEFAULT 0
-        );
-
-        CREATE TABLE IF NOT EXISTS reset_tokens (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id               INTEGER NOT NULL,
-            code_hash             TEXT NOT NULL,
-            token                 TEXT NOT NULL UNIQUE,
-            expires_at            REAL NOT NULL,
-            used                  INTEGER NOT NULL DEFAULT 0,
-            verified              INTEGER NOT NULL DEFAULT 0,
-            attempts              INTEGER NOT NULL DEFAULT 0,
-            created_at            REAL NOT NULL DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_reset_token ON reset_tokens(token);
-
-        -- ============================================================
-        -- AUDIT LOG (for Auditor role + President oversight)
-        -- ============================================================
-        CREATE TABLE IF NOT EXISTS audit_log (
-            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id              INTEGER,
-            user_id               INTEGER,
-            action                TEXT NOT NULL,
-            entity_type           TEXT,
-            entity_id             INTEGER,
-            details               TEXT,
-            created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_audit_group ON audit_log(group_id);
+        CREATE INDEX IF NOT EXISTS idx_loan_group
+            ON loan(group_id);
+        CREATE INDEX IF NOT EXISTS idx_loan_member
+            ON loan(member_id, group_id);
         """
     )
     conn.commit()
+    logger.info("Schema creation / verification completed successfully")
 
 
-def migrate_schema(conn: sqlite3.Connection) -> None:
+def drop_all_tables(conn: sqlite3.Connection) -> None:
     """
-    Idempotent upgrades for older databases.
-    Safe to call after create_schema().
+    Dangerously drop every table defined by this schema.
+
+    Intended only for test fixtures and development reset scripts.
+    Never call this in production.
+
+    Parameters
+    ----------
+    conn : sqlite3.Connection
+        Open connection with sufficient privileges.
     """
-    upgrades = [
-        "ALTER TABLE groups ADD COLUMN njangi_code TEXT",
-        "ALTER TABLE groups ADD COLUMN uuid TEXT",
-        "ALTER TABLE groups ADD COLUMN frequency_days INTEGER NOT NULL DEFAULT 30",
-        "ALTER TABLE users ADD COLUMN pin_hash TEXT",
-        "ALTER TABLE users ADD COLUMN password_hash TEXT",
-        "ALTER TABLE group_memberships ADD COLUMN share_count INTEGER NOT NULL DEFAULT 1",
-        "ALTER TABLE group_memberships ADD COLUMN member_code TEXT",
-        "ALTER TABLE contributions ADD COLUMN fund_id INTEGER",
-        "ALTER TABLE contributions ADD COLUMN payment_method TEXT DEFAULT 'Cash'",
-        "ALTER TABLE loans ADD COLUMN total_due REAL NOT NULL DEFAULT 0",
-        "ALTER TABLE loans ADD COLUMN payback_months INTEGER NOT NULL DEFAULT 1",
-        "ALTER TABLE loans ADD COLUMN required_guarantors INTEGER NOT NULL DEFAULT 1",
-        "ALTER TABLE loans ADD COLUMN member_id INTEGER",
-        "ALTER TABLE loan_guarantors ADD COLUMN guarantor_member_id INTEGER",
-        "ALTER TABLE loan_guarantors ADD COLUMN note TEXT",
-        "ALTER TABLE cycles ADD COLUMN paid_out_at TEXT",
-        "ALTER TABLE cycles ADD COLUMN paid_out_amount REAL NOT NULL DEFAULT 0",
-    ]
-    for sql in upgrades:
-        try:
-            conn.execute(sql)
-        except sqlite3.OperationalError:
-            pass  # column already exists
+    logger.warning("Dropping all Njangi schema tables (destructive operation)")
+    conn.executescript(
+        """
+        DROP TABLE IF EXISTS loan;
+        DROP TABLE IF EXISTS contribution;
+        DROP TABLE IF EXISTS cycle;
+        DROP TABLE IF EXISTS member;
+        DROP TABLE IF EXISTS njangi_group;
+        """
+    )
     conn.commit()
+    logger.warning("All tables dropped")
 
+
+def schema_version(conn: sqlite3.Connection) -> str:
+    """
+    Return a simple version identifier for the current schema.
+
+    Useful for future migration tooling. Currently hard-coded because
+    the schema is still small; later this can read a dedicated
+    schema_meta table.
+
+    Returns
+    -------
+    str
+        Version string of the form "major.minor".
+    """
+    return "2.1"
+
+
+# =============================================================================
+# Convenience entry point for command-line use
+# =============================================================================
 
 if __name__ == "__main__":
-    connection = get_connection()
-    create_schema(connection)
-    migrate_schema(connection)
-    connection.close()
-    print(f"Schema created/updated successfully at {DB_PATH}")
+    import sys
+
+    logging.basicConfig(level=logging.INFO)
+    target = sys.argv[1] if len(sys.argv) > 1 else DB_PATH
+    print(f"Creating schema in {target} …")
+    with get_connection(target) as connection:
+        create_schema(connection)
+    print("Done.")
