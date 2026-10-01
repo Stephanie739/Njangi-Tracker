@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contributions | Njangi Tracker</title>
+    <link rel="stylesheet" href="Audrey.css/contributions.css">
+    <link rel="stylesheet" href="Audrey.css/dashboard.css">
+</head>
+
+<body>
+    <aside class="sidebar" id="sidebar"><a href="dashboard.html" class="logo"><span
+                class="logo-mark">N</span><span>Njangi<span class="logo-accent">Tracker</span></span></a>
+        <div class="group-switcher"><small>ACTIVE GROUP</small><strong>Njangi Group</strong><span id="sideCycle">Active
+                Cycle</span></div>
+        <nav class="side-nav"><a href="dashboard.html"><span>▦</span> Dashboard</a><a
+                href="members.html"><span>👥</span> Members</a><a href="cycles.html"><span>↻</span> Cycles</a><a
+                href="contributions.html" class="active"><span>₣</span> Contributions</a><a
+                href="history.html"><span>◷</span> History</a></nav>
+        <div class="sidebar-bottom"><a href="#"><span>⚙</span> Settings</a><button id="logoutButton"
+                class="logout-button"><span>↪</span> Log out</button></div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="page">
+        <header class="topbar"><button class="mobile-menu" id="mobileMenu">☰</button>
+            <div class="topbar-search"><span>⌕</span><input id="topSearch" type="search"
+                    placeholder="Search contributions..."></div>
+            <div class="topbar-user">
+                <div class="notification">🔔</div>
+                <div class="user-avatar" id="userAvatar">NG</div>
+                <div class="user-info"><strong id="userName">Njangi Admin</strong><small>Administrator</small></div>
+            </div>
+        </header>
+        <main class="main-content">
+            <section class="page-heading">
+                <div><span class="section-label">CONTRIBUTIONS</span>
+                    <h1>Contribution Tracking</h1>
+                    <p>Record payments and immediately update member balances.</p>
+                </div><button class="primary-button" id="openContribution">+ Record Payment</button>
+            </section>
+            <section class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon green">₣</span><span
+                            class="trend">Current</span></div><small>Total Collected</small>
+                    <h2 id="totalCollected">0 FCFA</h2>
+                    <p>All payments in active cycle</p>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon blue">#</span><span
+                            class="neutral">Records</span></div><small>Payments</small>
+                    <h2 id="paymentCount">0</h2>
+                    <p>Contribution records</p>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon orange">!</span><span
+                            class="neutral">Due</span></div><small>Outstanding Members</small>
+                    <h2 id="outstandingCount">0</h2>
+                    <p>Members not fully paid</p>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon purple">✓</span><span
+                            class="neutral">Cycle</span></div><small>Cycle Progress</small>
+                    <h2 id="cycleProgress">0%</h2>
+                    <p id="cycleTargetText">Target: 0 FCFA</p>
+                </div>
+            </section>
+            <section class="panel">
+                <div class="panel-heading">
+                    <div><span class="section-label">PAYMENTS</span>
+                        <h2>Recent Contributions</h2>
+                    </div><a class="text-link" href="history.html">View history →</a>
+                </div>
+                <div class="contribution-filters"><input id="searchContribution" type="search"
+                        placeholder="Search member..."><select id="cycleFilter">
+                        <option value="active">Active cycle</option>
+                        <option value="all">All cycles</option>
+                    </select></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                                <th>Cycle</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contributionTable"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div class="modal" id="contributionModal" aria-hidden="true">
+        <div class="modal-card"><button class="modal-close" id="closeContribution">×</button><span
+                class="section-label">PAYMENT</span>
+            <h2>Record Contribution</h2>
+            <p>Choose a member and enter the payment amount.</p>
+            <form id="contributionForm" class="simple-form"><label>Member<select id="memberSelect"
+                        required></select></label><label>Amount (FCFA)<input id="amountInput" type="number" min="1"
+                        required></label><label>Payment Date<input id="dateInput" type="date" required></label>
+                <div class="form-actions"><button type="button" class="outline-button"
+                        id="cancelContribution">Cancel</button><button class="primary-button">Record Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="js/data.js"></script>
+    <script src="js/contributions.js"></script>
+</body>
+
+</html>

@@ -1,3 +1,29 @@
+#!/usr/bin/env python3
+"""
+Njangi Tracker - persistance Module
+================================
+
+Enhanced documentation and structural improvements for the Njangi Tracker
+persistance component.
+
+This file is part of the modular Python backend that supports the main
+server.py application and the earlier OOP / classroom exercises.
+
+Key Responsibilities
+--------------------
+- Domain logic specific to persistance
+- Clear separation from HTTP and persistence concerns
+- Ready for unit testing and future extension
+
+Version: 2.1.0 (Documentation & maintainability improvements)
+Last Updated: 2026-09-28
+"""
+
+import logging
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+logger = logging.getLogger('njangi.persistance')
+
 
 from datetime import date
 
