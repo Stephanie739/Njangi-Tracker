@@ -1,65 +1,37 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Set the page character encoding -->
     <meta charset="UTF-8">
-
-    <!-- Make the page responsive on different screen sizes -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- Describe the page for search engines -->
     <meta name="description" content="Login to Njangi Tracker.">
-
-    <!-- Set the browser tab title -->
     <title>Login | Njangi Tracker</title>
-
-    <!-- Connect to Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-    <!-- Load the Inter font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- Load the main and authentication styles -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/auth.css">
 </head>
-
 <body class="auth-page">
-
-    <!-- HEADER: Contains the logo and home link -->
+    <!-- HEADER: logo and link back to the landing page -->
     <header class="header">
         <div class="container nav">
-
-            <!-- Logo links back to the home page -->
             <a href="index.html" class="logo">
                 <span class="logo-mark">N</span>
                 <span>Njangi<span class="logo-accent">Tracker</span></span>
             </a>
-
-            <!-- Link back to the landing page -->
             <a href="index.html" class="back-link">← Back to Home</a>
         </div>
     </header>
 
-    <!-- MAIN: Contains the login introduction and form -->
+    <!-- MAIN: login area containing an introduction and the login form -->
     <main class="auth-main">
         <div class="auth-container">
-
-            <!-- LEFT SIDE: Explains the benefits of logging in -->
+            <!-- Left side: explains why the user is logging in -->
             <div class="auth-intro">
-
-                <!-- Welcome message -->
                 <div class="badge"><span class="badge-dot"></span> Welcome back</div>
-
-                <!-- Main login heading -->
                 <h1>Login to your <span>Njangi</span></h1>
-
-                <!-- Short description -->
                 <p>Access your group dashboard, members, cycles and contribution records.</p>
 
-                <!-- List of available features -->
                 <div class="auth-benefits">
                     <div><span>✓</span> Manage your members</div>
                     <div><span>✓</span> Track contributions</div>
@@ -67,73 +39,55 @@
                 </div>
             </div>
 
-            <!-- RIGHT SIDE: Contains the login form -->
+            <!-- Right side: the actual login form -->
             <div class="auth-card">
-
-                <!-- Login form heading -->
                 <div class="auth-card-heading">
                     <h2>Welcome back</h2>
                     <p>Enter your details to continue.</p>
                 </div>
 
-                <!-- LOGIN FORM: JavaScript handles custom validation -->
+                <!-- novalidate lets JavaScript handle our custom validation messages. -->
                 <form id="loginForm" novalidate>
-
-                    <!-- EMAIL FIELD: Collects the user's email -->
                     <!-- EMAIL FIELD -->
                     <!-- PASSWORD FIELD -->
                     <div class="form-group">
                         <label for="loginEmail">Email address</label>
-
-                        <!-- User enters their email here -->
                         <input type="email" id="loginEmail" name="email" placeholder="you@example.com" autocomplete="email" required>
-
-                        <!-- Displays email validation errors -->
                         <small class="error-message" id="loginEmailError"></small>
                     </div>
 
-                    <!-- PASSWORD FIELD: Collects the user's password -->
                     <div class="form-group">
                         <div class="label-row">
-
-                            <!-- Password label -->
                             <label for="loginPassword">Password</label>
-
-                            <!-- Link for password recovery -->
                             <a href="#" id="forgotPassword">Forgot password?</a>
                         </div>
-
-                        <!-- Password input and show/hide button -->
                         <div class="password-wrap">
                             <input type="password" id="loginPassword" name="password" placeholder="Enter your password" autocomplete="current-password" required>
-
-                            <!-- Button used by JavaScript to show or hide the password -->
                             <button type="button" class="password-toggle" data-target="loginPassword" aria-label="Show password">Show</button>
                         </div>
-
-                        <!-- Displays password validation errors -->
                         <small class="error-message" id="loginPasswordError"></small>
                     </div>
 
-                    <!-- SUBMIT: Sends the login form for JavaScript processing -->
-                    <button type="submit" class="btn btn-primary auth-submit">Login <span>→</span></button>
+                    <!-- Optional checkbox for remembering the user on this device. -->
+                    <label class="checkbox-row">
+                        <input type="checkbox" id="rememberMe">
+                        <span>Remember me</span>
+                    </label>
 
-                    <!-- Displays login success or error messages -->
+                    <!-- Submit button: JavaScript checks the form before continuing. -->
+                    <button type="submit" class="btn btn-primary auth-submit">Login <span>→</span></button>
                     <p class="form-message" id="loginMessage"></p>
                 </form>
 
-                <!-- Divider between login and account creation -->
                 <div class="auth-divider"><span>OR</span></div>
 
-                <!-- Link to the registration page -->
                 <p class="switch-auth">Don't have an account? <a href="register.html">Create one</a></p>
             </div>
         </div>
     </main>
 
-    <!-- JAVASCRIPT: Loads API functions and authentication logic -->
+    <!-- auth.js contains password toggling and login/register validation. -->
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
 </body>
 </html>
-
