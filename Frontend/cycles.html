@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cycles | Njangi Tracker</title>
+    <link rel="stylesheet" href="Audrey.css/cycles.css">
+    <link rel="stylesheet" href="Audrey.css/dashboard.css">
+</head>
+
+<body>
+    <aside class="sidebar" id="sidebar"><a href="dashboard.html" class="logo"><span
+                class="logo-mark">N</span><span>Njangi<span class="logo-accent">Tracker</span></span></a>
+        <div class="group-switcher"><small>ACTIVE GROUP</small><strong>Njangi Group</strong><span
+                id="sideCycle">Cycle</span></div>
+        <nav class="side-nav"><a href="dashboard.html"><span>▦</span> Dashboard</a><a
+                href="members.html"><span>👥</span> Members</a><a href="cycles.html" class="active"><span>↻</span>
+                Cycles</a><a href="contributions.html"><span>₣</span> Contributions</a><a
+                href="history.html"><span>◷</span> History</a></nav>
+        <div class="sidebar-bottom"><a href="#"><span>⚙</span> Settings</a><button id="logoutButton"
+                class="logout-button"><span>↪</span> Log out</button></div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="page">
+        <header class="topbar"><button class="mobile-menu" id="mobileMenu">☰</button>
+            <div class="topbar-search"><span>⌕</span><input id="topSearch" type="search" placeholder="Search cycles...">
+            </div>
+            <div class="topbar-user">
+                <div class="notification">🔔</div>
+                <div class="user-avatar" id="userAvatar">NG</div>
+                <div class="user-info"><strong id="userName">Njangi Admin</strong><small>Administrator</small></div>
+            </div>
+        </header>
+        <main class="main-content">
+            <section class="page-heading">
+                <div><span class="section-label">ROTATION</span>
+                    <h1>Cycle Management</h1>
+                    <p>Create, monitor and close Njangi saving cycles.</p>
+                </div><button class="primary-button" id="openCycle">+ Create Cycle</button>
+            </section>
+            <section class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon green">↻</span><span
+                            class="neutral">Current</span></div><small>Active Cycle</small>
+                    <h2 id="activeCycleName">None</h2>
+                    <p id="activeCycleDates">-</p>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon blue">₣</span><span
+                            class="neutral">Pool</span></div><small>Current Pool</small>
+                    <h2 id="cyclePool">0 FCFA</h2>
+                    <p id="cycleTarget">Target: 0 FCFA</p>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon orange">→</span><span
+                            class="neutral">Recipient</span></div><small>Next Payout</small>
+                    <h2 id="recipientName">-</h2>
+                    <p id="recipientPosition">Rotation position: -</p>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-top"><span class="dashboard-icon purple">%</span><span class="trend"
+                            id="cyclePercent">0%</span></div><small>Collection Progress</small>
+                    <h2 id="cycleProgress">0%</h2>
+                    <p>Based on current cycle target</p>
+                </div>
+            </section>
+            <section class="panel active-cycle-panel">
+                <div class="panel-heading">
+                    <div><span class="section-label">ACTIVE CYCLE</span>
+                        <h2 id="activeTitle">No active cycle</h2>
+                    </div><button class="primary-button small-button" id="closeCycleButton">Validate & Close
+                        Cycle</button>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-row"><span id="progressCollected">0 FCFA collected</span><strong
+                        id="progressPercent">0%</strong></div>
+                <div class="cycle-info-grid">
+                    <div><span>Start date</span><strong id="startDate">-</strong></div>
+                    <div><span>End date</span><strong id="endDate">-</strong></div>
+                    <div><span>Members paid</span><strong id="paidMembers">0 / 0</strong></div>
+                    <div><span>Payout recipient</span><strong id="recipientDetail">-</strong></div>
+                </div>
+            </section>
+            <section class="panel">
+                <div class="panel-heading">
+                    <div><span class="section-label">CYCLE HISTORY</span>
+                        <h2>All Cycles</h2>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cycle</th>
+                                <th>Period</th>
+                                <th>Target</th>
+                                <th>Collected</th>
+                                <th>Recipient</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cycleTable"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div class="modal" id="cycleModal" aria-hidden="true">
+        <div class="modal-card"><button class="modal-close" id="closeCycleModal">×</button><span
+                class="section-label">NEW CYCLE</span>
+            <h2>Create Cycle</h2>
+            <p>A new cycle becomes active if there is no active cycle.</p>
+            <form id="cycleForm" class="simple-form"><label>Cycle Number<input id="cycleNumber" type="number" min="1"
+                        required></label><label>Target Pool (FCFA)<input id="cycleTargetInput" type="number" min="1"
+                        required></label><label>Start Date<input id="cycleStart" type="date" required></label><label>End
+                    Date<input id="cycleEnd" type="date" required></label><label>Planned Recipient<select
+                        id="cycleRecipient"></select></label>
+                <div class="form-actions"><button type="button" class="outline-button"
+                        id="cancelCycle">Cancel</button><button class="primary-button">Create Cycle</button></div>
+            </form>
+        </div>
+    </div>
+    <script src="js/data.js"></script>
+    <script src="js/cycles.js"></script>
+</body>
+
+</html>
