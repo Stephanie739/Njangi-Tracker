@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings | Njangi Tracker</title>
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;align-items:start}
+    .settings-form{display:grid;gap:14px;margin-top:14px}
+    .settings-form label{display:grid;gap:6px;font-size:.85rem;font-weight:600;color:#3f4f47}
+    .settings-form input,.settings-form select{padding:11px 12px;border:1px solid #d4ddd8;border-radius:10px;font:inherit;background:#fff}
+    .settings-form input[readonly]{background:#f3f6f4;color:#6b7a72}
+    .settings-form small{font-weight:400;color:#6b7a72}
+    .settings-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .settings-msg{min-height:1.2em;font-size:.88rem;margin:0}
+    .settings-msg.ok{color:#166534}.settings-msg.err{color:#b42318}
+    .pill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:.8rem;font-weight:700}
+    .pill.ok{background:#e3f6ea;color:#166534}.pill.bad{background:#fdeceb;color:#b42318}
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <a href="index.html" class="logo"><span class="logo-mark">N</span><span>Njangi<span class="logo-accent">Tracker</span></span></a>
+    <div class="group-switcher"><small>ACTIVE GROUP</small><strong>Njangi Group</strong><span>Current cycle</span></div>
+    <nav class="side-nav" id="sideNav"></nav>
+    <div class="sidebar-bottom"><a href="settings.html" class="active"><span>⚙</span> Settings</a><button id="logoutButton" class="logout-button"><span>↪</span> Log out</button></div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="page">
+    <header class="topbar">
+      <button class="mobile-menu" id="mobileMenu" aria-label="Open menu">☰</button>
+      <div class="topbar-search"></div>
+      <div class="topbar-user"><div class="notification">Alerts<span></span></div><div class="user-avatar" id="userAvatar">NG</div><div class="user-info"><strong id="userName">Njangi</strong><small id="userRole"></small></div></div>
+    </header>
+
+    <main class="main-content">
+      <section class="page-heading"><div><span class="section-label">ACCOUNT</span><h1>Settings</h1><p id="settingsIntro">Manage your account and your njangi group.</p></div></section>
+
+      <div class="settings-grid">
+        <section class="panel" id="profilePanel">
+          <div class="panel-heading"><div><span class="section-label">PROFILE</span><h2>Your details</h2></div></div>
+          <form class="settings-form" id="profileForm">
+            <label>Full name<input id="setName" required maxlength="80"></label>
+            <label>Email address<input id="setEmail" readonly><small>The email is your login and where password PINs are sent.</small></label>
+            <label>Phone number<input id="setPhone" maxlength="30"></label>
+            <div class="settings-actions"><button class="primary-button" id="profileSave" type="submit">Save details</button><p class="settings-msg" id="profileMsg"></p></div>
+          </form>
+        </section>
+
+        <section class="panel" id="groupPanel" hidden>
+          <div class="panel-heading"><div><span class="section-label">GROUP</span><h2>Njangi group</h2></div></div>
+          <form class="settings-form" id="groupForm">
+            <label>Group name<input id="setGroupName" required maxlength="80"></label>
+            <label>Default contribution (FCFA)<input id="setAmount" type="number" min="1" step="any" required><small>Used as the expected amount for members you add from now on. Existing members keep their own amount.</small></label>
+            <label>Frequency<select id="setFrequency"><option>Weekly</option><option>Biweekly</option><option>Monthly</option></select><small>Used to suggest the end date of a new cycle.</small></label>
+            <div class="settings-actions"><button class="primary-button" type="submit">Save group</button><p class="settings-msg" id="groupMsg"></p></div>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><div><span class="section-label">SECURITY</span><h2>Change password</h2></div></div>
+          <form class="settings-form" id="passwordForm" autocomplete="off">
+            <label>Current password<input id="curPassword" type="password" autocomplete="current-password" required></label>
+            <label>New password<input id="newPass" type="password" minlength="8" autocomplete="new-password" required><small>At least 8 characters.</small></label>
+            <label>Confirm new password<input id="newPass2" type="password" minlength="8" autocomplete="new-password" required></label>
+            <div class="settings-actions"><button class="primary-button" type="submit">Change password</button><p class="settings-msg" id="passwordMsg"></p></div>
+          </form>
+        </section>
+
+        <section class="panel" id="emailPanel" hidden>
+          <div class="panel-heading"><div><span class="section-label">SYSTEM</span><h2>Email delivery</h2></div></div>
+          <p style="margin-top:14px">Password-reset PINs are sent by email. Status: <span class="pill" id="emailStatus">checking…</span></p>
+          <p id="emailHelp" class="settings-msg" style="margin-top:8px"></p>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/settings.js"></script>
+</body>
+</html>

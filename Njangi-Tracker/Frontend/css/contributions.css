@@ -1,0 +1,79 @@
+.contribution-filters {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 12px;
+    margin: 20px 0
+}
+
+.contribution-filters input,
+.contribution-filters select {
+    padding: 12px 14px;
+    border: 1px solid #e1e8e3;
+    border-radius: 10px;
+    background: #fff;
+    outline: none
+}
+
+.contribution-filters input:focus,
+.contribution-filters select:focus {
+    border-color: #176b4d
+}
+
+.amount-positive {
+    font-weight: 800;
+    color: #176b4d
+}
+
+.simple-form {
+    display: grid;
+    gap: 15px;
+    margin-top: 20px
+}
+
+.simple-form label {
+    font-size: 12px;
+    font-weight: 700
+}
+
+.simple-form input,
+.simple-form select {
+    display: block;
+    width: 100%;
+    margin-top: 7px;
+    padding: 12px;
+    border: 1px solid #e1e8e3;
+    border-radius: 9px;
+    outline: none;
+    background: #fff
+}
+
+.simple-form input:focus,
+.simple-form select:focus {
+    border-color: #176b4d
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px
+}
+
+.action-delete {
+    border: 0;
+    border-radius: 8px;
+    padding: 7px 9px;
+    background: #fff0ee;
+    color: #b12d21;
+    font-size: 11px
+}
+
+.wide-table {
+    min-width: 850px
+}
+
+@media(max-width:800px) {
+    .contribution-filters {
+        grid-template-columns: 1fr
+    }
+}

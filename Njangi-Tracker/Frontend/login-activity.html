@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Activity | Njangi Tracker</title>
+  <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <!-- SIDEBAR: Same design as the dashboard. -->
+  <aside class="sidebar" id="sidebar">
+    <a href="dashboard.html" class="logo"><span class="logo-mark">N</span><span>Njangi<span class="logo-accent">Tracker</span></span></a>
+    <div class="group-switcher"><small>ACTIVE GROUP</small><strong>Njangi Group</strong><span>Current cycle</span></div>
+    <nav class="side-nav">
+      <a href="dashboard.html"><span>▦</span> Dashboard</a>
+      <a href="members.html"><span>MB</span> Members</a>
+      <a href="cycles.html"><span>↻</span> Cycles</a>
+      <a href="contributions.html"><span>₣</span> Contributions</a>
+      <a href="history.html"><span>◷</span> History</a>
+    <a href="loans.html"><span>LN</span> Emergency Loans</a></nav>
+    <div class="sidebar-bottom"><a href="login-activity.html" class="active">◷ Login Activity</a><a href="settings.html"><span>⚙</span> Settings</a><button id="logoutButton" class="logout-button"><span>↪</span> Log out</button></div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="page">
+    <header class="topbar">
+      <button class="mobile-menu" id="mobileMenu" aria-label="Open menu">☰</button>
+      <div class="topbar-search"></div>
+      <div class="topbar-user"><div class="notification">Alerts<span></span></div><div class="user-avatar" id="userAvatar">NG</div><div class="user-info"><strong id="userName">Njangi Admin</strong><small>Administrator</small></div></div>
+    </header>
+
+    <main class="main-content">
+      <section class="page-heading"><div><span class="section-label">SECURITY</span><h1>Login Activity</h1><p>The 100 most recent sign-ins (administrators and members) for your Njangi group.</p></div></section>
+
+      <section class="stats-grid">
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon blue">LG</span><span class="neutral">Total</span></div><small>Recent Sign-ins</small><h2 id="activityCount">0</h2><p>Last 100 events</p></div>
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon green">AD</span><span class="neutral">Admins</span></div><small>Admin Sign-ins</small><h2 id="activityAdmins">0</h2><p>Administrator logins</p></div>
+        <div class="stat-box"><div class="stat-box-top"><span class="dashboard-icon orange">MB</span><span class="neutral">Members</span></div><small>Member Sign-ins</small><h2 id="activityMembers">0</h2><p>Member logins</p></div>
+      </section>
+
+      <section class="panel recent-panel">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Signed in</th></tr></thead>
+            <tbody id="activityBody"></tbody>
+          </table>
+          <div class="empty-table" id="emptyActivity"><strong>No login activity yet.</strong><span>Sign-ins will appear here.</span></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+  <script src="js/login-activity.js"></script>
+</body>
+</html>

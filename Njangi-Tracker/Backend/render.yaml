@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: njangi-tracker-api
+    runtime: python
+    buildCommand: python -m py_compile server.py
+    startCommand: python server.py
+    healthCheckPath: /api/health
+    envVars:
+      - key: NJANGI_CORS_ORIGINS
+        value: https://YOUR-FRONTEND-URL.onrender.com
+      - key: NJANGI_SMTP_HOST
+        value: smtp.gmail.com
+      - key: NJANGI_SMTP_PORT
+        value: "587"
+      - key: NJANGI_SMTP_USERNAME
+        sync: false
+      - key: NJANGI_SMTP_PASSWORD
+        sync: false
+      - key: NJANGI_SMTP_FROM
+        sync: false
+      - key: NJANGI_DEV_SHOW_PIN
+        value: "0"
+      - key: NJANGI_DB_PATH
+        value: /var/data/njangi_app.db
+      - key: NJANGI_LOAN_MIN_RELIABILITY
+        value: "70"
+      - key: NJANGI_LOAN_MIN_CYCLES
+        value: "1"
+    disk:
+      name: njangi-data
+      mountPath: /var/data
+      sizeGB: 1
